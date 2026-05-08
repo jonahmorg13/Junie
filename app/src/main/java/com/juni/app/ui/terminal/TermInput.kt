@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.juni.app.ui.theme.TermAccent
 import com.juni.app.ui.theme.TermType
@@ -24,6 +25,7 @@ fun TermInput(
     placeholder: String? = null,
     singleLine: Boolean = false,
     imeAction: ImeAction = ImeAction.Default,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
     onSubmit: (() -> Unit)? = null,
 ) {
     Row(
@@ -43,6 +45,7 @@ fun TermInput(
                 textStyle = TermType.body,
                 cursorBrush = SolidColor(TermAccent),
                 singleLine = singleLine,
+                visualTransformation = visualTransformation,
                 keyboardOptions = KeyboardOptions(imeAction = imeAction),
                 keyboardActions = KeyboardActions(
                     onSend = { onSubmit?.invoke() },

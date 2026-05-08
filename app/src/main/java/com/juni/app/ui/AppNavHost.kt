@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.juni.app.ui.chatdebug.ChatDebugScreen
 import com.juni.app.ui.preview.PreviewScreen
 import com.juni.app.ui.settings.SettingsScreen
 import com.juni.app.ui.vault.VaultDebugScreen
@@ -19,6 +20,7 @@ object Routes {
     const val HOME = "home"
     const val SETTINGS = "settings"
     const val VAULT = "vault"
+    const val CHAT_DEBUG = "chat_debug"
 }
 
 @Composable
@@ -34,6 +36,7 @@ fun AppNavHost() {
                 PreviewScreen(
                     onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                     onOpenVault = { nav.navigate(Routes.VAULT) },
+                    onOpenChatDebug = { nav.navigate(Routes.CHAT_DEBUG) },
                 )
             }
             composable(Routes.SETTINGS) {
@@ -43,6 +46,11 @@ fun AppNavHost() {
             }
             composable(Routes.VAULT) {
                 VaultDebugScreen(
+                    onBack = { nav.popBackStack() },
+                )
+            }
+            composable(Routes.CHAT_DEBUG) {
+                ChatDebugScreen(
                     onBack = { nav.popBackStack() },
                 )
             }

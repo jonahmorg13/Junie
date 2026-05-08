@@ -1,5 +1,6 @@
 package com.juni.app.ui.preview
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,7 @@ import com.juni.app.ui.terminal.TermText
 fun PreviewScreen(
     onOpenSettings: () -> Unit = {},
     onOpenVault: () -> Unit = {},
+    onOpenChatDebug: () -> Unit = {},
 ) {
     var typed by remember { mutableStateOf("") }
     var counter by remember { mutableStateOf(0) }
@@ -45,10 +47,15 @@ fun PreviewScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
             TermText(text = "juni · ui preview", color = TermColor.Accent, bold = true)
             TermButton(label = "settings", onClick = onOpenSettings)
             TermButton(label = "vault", onClick = onOpenVault)
+            TermButton(label = "chat", color = TermColor.Green, onClick = onOpenChatDebug)
         }
         TermText(text = "every terminal primitive on one screen", color = TermColor.Dim)
 

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -59,7 +60,11 @@ fun SettingsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
             TermButton(label = "back", onClick = onBack)
             TermText(text = "settings", color = TermColor.Accent, bold = true)
         }
@@ -177,23 +182,31 @@ private fun ProviderConfigBox(
                         label = if (revealKey) "hide" else "show",
                         onClick = { revealKey = !revealKey },
                     )
-                }
-                val displayed = if (revealKey || apiKeyDraft.isEmpty()) {
-                    apiKeyDraft
-                } else {
-                    "•".repeat(apiKeyDraft.length.coerceAtMost(40))
+                    if (apiKeyDraft.isNotEmpty()) {
+                        TermButton(
+                            label = "clear",
+                            color = TermColor.Red,
+                            onClick = {
+                                apiKeyDraft = ""
+                                onApiKeyChange("")
+                            },
+                        )
+                    }
                 }
                 TermInput(
-                    value = if (revealKey) apiKeyDraft else displayed,
+                    value = apiKeyDraft,
                     onValueChange = {
-                        if (revealKey) {
-                            apiKeyDraft = it
-                            onApiKeyChange(it)
-                        }
+                        apiKeyDraft = it
+                        onApiKeyChange(it)
                     },
                     prompt = "  ",
                     placeholder = "paste your key…",
                     singleLine = true,
+                    visualTransformation = if (revealKey) {
+                        androidx.compose.ui.text.input.VisualTransformation.None
+                    } else {
+                        androidx.compose.ui.text.input.PasswordVisualTransformation('•')
+                    },
                 )
             }
         }

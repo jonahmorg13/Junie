@@ -1,6 +1,7 @@
 package com.juni.app.ui.vault
 
 import android.net.Uri
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -70,7 +71,11 @@ fun VaultDebugScreen(onBack: () -> Unit) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
             TermButton(label = "back", onClick = onBack)
             TermText(text = "vault debug", color = TermColor.Accent, bold = true)
         }
@@ -85,7 +90,11 @@ fun VaultDebugScreen(onBack: () -> Unit) {
         }
 
         TermText(text = "dir: /${currentDir}", color = TermColor.Dim)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
             TermButton(label = "root", onClick = { currentDir = "" })
             if (currentDir.isNotEmpty()) {
                 TermButton(label = "..", onClick = {
