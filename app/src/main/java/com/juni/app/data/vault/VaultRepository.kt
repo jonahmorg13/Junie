@@ -26,6 +26,9 @@ class VaultRepository(
         dir.listFiles()
             .mapNotNull { df ->
                 val name = df.name ?: return@mapNotNull null
+                // Skip dotfiles/dotfolders (.obsidian/, .trash/, .git/, …). The agent doesn't
+                // need to see them and listing them is mostly noise.
+                if (name.startsWith(".")) return@mapNotNull null
                 VaultEntry(
                     relativePath = joinPath(relativePath, name),
                     name = name,
@@ -152,6 +155,9 @@ class VaultRepository(
     ) {
         for (child in dir.listFiles()) {
             val name = child.name ?: continue
+            // Skip hidden directories like .trash/ and .obsidian/ — search shouldn't
+            // surface deleted notes or plugin config.
+            if (name.startsWith(".")) continue
             val childPath = joinPath(path, name)
             when {
                 child.isDirectory -> walkMarkdown(child, childPath, visit)
