@@ -130,7 +130,7 @@ fun SettingsScreen(
     if (pendingClearVault) {
         TermConfirm(
             title = "clear vault",
-            message = "remove juni's access to your vault folder? you'll need to pick it again.",
+            message = "remove junie's access to your vault folder? you'll need to pick it again.",
             confirmLabel = "clear",
             onConfirm = {
                 vm.setVaultUri(null)
@@ -288,7 +288,7 @@ private fun DataSection(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             TermText(
                 text = "wipe all saved chats and their messages from this device. " +
-                    "the vault contents juni already wrote are not affected.",
+                    "the vault contents junie already wrote are not affected.",
                 color = TermColor.Dim,
             )
             TermButton(

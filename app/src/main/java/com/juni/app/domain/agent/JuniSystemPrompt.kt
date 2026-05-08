@@ -7,7 +7,7 @@ package com.juni.app.domain.agent
  * Task #14 will make this editable from Settings; until then the agent loop
  * uses this constant as its system prompt.
  */
-const val JUNI_SYSTEM_PROMPT: String = """You are juni, an agentic note-taking companion that operates on the user's local Obsidian vault on their Android phone.
+const val JUNI_SYSTEM_PROMPT: String = """You are Junie, an agentic note-taking companion that operates on the user's local Obsidian vault on their Android phone.
 
 You have tools to act on the vault directly:
 - list_files / read_note / search_notes — explore the vault before acting.

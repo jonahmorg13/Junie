@@ -1,21 +1,25 @@
 package com.juni.app.ui.theme
 
+import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowInsetsControllerCompat
 import com.juni.app.JuniApp
 import com.juni.app.R
 import com.juni.app.data.prefs.ThemePref
@@ -119,6 +123,23 @@ fun JuniTheme(content: @Composable () -> Unit) {
         ThemePref.LIGHT -> LightPalette
         else -> DarkPalette
     }
+    val isLightTheme = palette === LightPalette
+
+    // Tell the system to use dark status- and navigation-bar icons in light
+    // mode (so they're legible on the cream bg) and light icons in dark mode.
+    // enableEdgeToEdge() in MainActivity makes the bars transparent; the icon
+    // tint is independent and lives on WindowInsetsControllerCompat.
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window ?: return@SideEffect
+            WindowInsetsControllerCompat(window, view).apply {
+                isAppearanceLightStatusBars = isLightTheme
+                isAppearanceLightNavigationBars = isLightTheme
+            }
+        }
+    }
+
     CompositionLocalProvider(LocalPalette provides palette) {
         Box(
             modifier = Modifier

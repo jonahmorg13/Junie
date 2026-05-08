@@ -4,6 +4,10 @@ import androidx.compose.foundation.Image
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -24,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +37,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.juni.app.JuniApp
+import com.juni.app.data.image.resizeAndRotate
 import com.juni.app.ui.terminal.Toaster
 import com.juni.app.domain.agent.ChatIntent
 import com.juni.app.ui.terminal.TermBox
@@ -45,6 +52,8 @@ import com.juni.app.ui.terminal.TermPromptDialog
 import com.juni.app.ui.terminal.TermSpinner
 import com.juni.app.ui.terminal.TermText
 import android.graphics.BitmapFactory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun ChatScreen(
@@ -57,9 +66,36 @@ fun ChatScreen(
     var draft by remember { mutableStateOf("") }
     var renameDialogOpen by remember { mutableStateOf(false) }
     var intentMenuOpen by remember { mutableStateOf(false) }
+    var attachMenuOpen by remember { mutableStateOf(false) }
     val titleClickSource = remember { MutableInteractionSource() }
     val transcriptScroll = rememberScrollState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val pickFileLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri: Uri? ->
+        if (uri != null) {
+            scope.launch(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }
+                    .mapCatching { raw -> raw?.resizeAndRotate() }
+                    .onSuccess { processed ->
+                        if (processed != null) {
+                            JuniApp.get().addComposerImage(processed)
+                            Toaster.success("image attached")
+                        } else {
+                            Toaster.error("couldn't read image")
+                        }
+                    }
+                    .onFailure {
+                        Log.e("juni-chat", "image attach failed", it)
+                        Toaster.error("couldn't load image")
+                    }
+            }
+        }
+    }
     val obsidianHandler: ((String) -> Unit)? = ui.vaultUri?.let { vaultUri ->
         { path ->
             openInObsidian(context, vaultUri, path)
@@ -78,7 +114,7 @@ fun ChatScreen(
         ) {
             TermButton(label = "back", onClick = onBack)
             TermText(
-                text = ui.title.ifEmpty { "juni" },
+                text = ui.title.ifEmpty { "junie" },
                 color = TermColor.Accent,
                 bold = true,
                 modifier = Modifier.clickable(
@@ -169,7 +205,7 @@ fun ChatScreen(
                 modifier = Modifier.weight(1f),
                 value = draft,
                 onValueChange = { draft = it },
-                placeholder = if (ui.isStreaming) "streaming…" else "ask juni…",
+                placeholder = if (ui.isStreaming) "streaming…" else "ask junie…",
                 singleLine = false,
                 imeAction = ImeAction.Send,
                 showBorder = false,
@@ -181,7 +217,11 @@ fun ChatScreen(
                     }
                 },
             )
-            TermButton(label = "cam", onClick = onOpenCamera, enabled = !ui.isStreaming)
+            TermButton(
+                label = "attach",
+                onClick = { attachMenuOpen = true },
+                enabled = !ui.isStreaming,
+            )
             if (ui.isStreaming) {
                 TermButton(label = "stop", color = TermColor.Red, onClick = { vm.stop() })
             } else {
@@ -223,6 +263,33 @@ fun ChatScreen(
                 intentMenuOpen = false
             },
             onDismiss = { intentMenuOpen = false },
+        )
+    }
+    if (attachMenuOpen) {
+        TermMenuSheet(
+            title = "attach…",
+            items = listOf(
+                TermMenuItem(
+                    key = "camera",
+                    label = "use camera",
+                    description = "take a photo with the device camera",
+                ),
+                TermMenuItem(
+                    key = "file",
+                    label = "upload a file",
+                    description = "attach an image from your phone",
+                ),
+            ),
+            onPick = { key ->
+                attachMenuOpen = false
+                when (key) {
+                    "camera" -> onOpenCamera()
+                    "file" -> pickFileLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                    )
+                }
+            },
+            onDismiss = { attachMenuOpen = false },
         )
     }
 }

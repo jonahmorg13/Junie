@@ -67,7 +67,7 @@ fun CameraScreen(onBack: () -> Unit) {
             TermBox(title = "camera permission") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TermText(
-                        text = "juni needs camera access to capture whiteboards and journal pages.",
+                        text = "junie needs camera access to capture whiteboards and journal pages.",
                         color = TermColor.Dim,
                     )
                     TermButton(
