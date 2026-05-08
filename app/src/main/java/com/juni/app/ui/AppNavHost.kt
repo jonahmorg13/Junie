@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.juni.app.ui.camera.CameraScreen
 import com.juni.app.ui.chat.ChatScreen
 import com.juni.app.ui.preview.PreviewScreen
 import com.juni.app.ui.settings.SettingsScreen
@@ -21,6 +22,7 @@ object Routes {
     const val SETTINGS = "settings"
     const val VAULT = "vault"
     const val CHAT = "chat"
+    const val CAMERA = "camera"
 }
 
 @Composable
@@ -51,6 +53,12 @@ fun AppNavHost() {
             }
             composable(Routes.CHAT) {
                 ChatScreen(
+                    onBack = { nav.popBackStack() },
+                    onOpenCamera = { nav.navigate(Routes.CAMERA) },
+                )
+            }
+            composable(Routes.CAMERA) {
+                CameraScreen(
                     onBack = { nav.popBackStack() },
                 )
             }

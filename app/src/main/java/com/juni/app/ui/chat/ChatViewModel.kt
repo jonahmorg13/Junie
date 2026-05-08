@@ -1,6 +1,7 @@
 package com.juni.app.ui.chat
 
 import android.net.Uri
+import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.juni.app.JuniApp
@@ -11,6 +12,8 @@ import com.juni.app.domain.agent.AgentEvent
 import com.juni.app.domain.agent.AgentLoop
 import com.juni.app.domain.agent.ApprovalResult
 import com.juni.app.domain.agent.Message
+import com.juni.app.domain.agent.MessageContent
+import com.juni.app.domain.agent.Role
 import com.juni.app.domain.tools.AttachmentStaging
 import com.juni.app.domain.tools.ToolRegistry
 import com.juni.app.domain.tools.VaultTools
@@ -52,6 +55,12 @@ class ChatViewModel : ViewModel() {
     /** Pending approval handles, keyed by tool_use id. */
     private val pendingApprovals: MutableMap<String, CompletableDeferred<ApprovalResult>> = mutableMapOf()
 
+    /** Backing AttachmentStaging the agent's save_attachment tool pulls from. */
+    private val attachmentStaging = AttachmentStaging()
+
+    /** Pending attachments visible in the composer, observed for image-count display. */
+    val pendingImages: StateFlow<List<ByteArray>> = app.composerImages
+
     private var currentJob: Job? = null
 
     init {
@@ -65,7 +74,8 @@ class ChatViewModel : ViewModel() {
 
     fun send(input: String) {
         val text = input.trim()
-        if (text.isEmpty() || _ui.value.isStreaming) return
+        val images = app.composerImages.value
+        if ((text.isEmpty() && images.isEmpty()) || _ui.value.isStreaming) return
 
         currentJob = viewModelScope.launch {
             val settings = app.appSettings.flow.first()
@@ -80,8 +90,20 @@ class ChatViewModel : ViewModel() {
                 return@launch
             }
 
-            history += Message.userText(text)
-            appendItem(ChatItem.UserText(text))
+            // Build the user message: any images first, then the text. Also feed
+            // copies into the AttachmentStaging so save_attachment can persist them.
+            val content = buildList<MessageContent> {
+                images.forEach { bytes ->
+                    val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                    add(MessageContent.Image(mimeType = "image/jpeg", base64 = b64))
+                    attachmentStaging.add(bytes)
+                }
+                if (text.isNotEmpty()) add(MessageContent.Text(text))
+            }
+            history += Message(Role.USER, content)
+            appendItem(ChatItem.UserMessage(text = text, imageCount = images.size))
+            app.clearComposerImages()
+
             _ui.value = _ui.value.copy(
                 streaming = "",
                 isStreaming = true,
@@ -99,6 +121,12 @@ class ChatViewModel : ViewModel() {
                 _ui.value = _ui.value.copy(streaming = "", isStreaming = false)
             }
         }
+    }
+
+    fun removePendingImage(index: Int) {
+        val current = app.composerImages.value
+        if (index !in current.indices) return
+        app.composerImages.value = current.toMutableList().also { it.removeAt(index) }
     }
 
     fun approve(toolUseId: String) {
@@ -134,7 +162,7 @@ class ChatViewModel : ViewModel() {
     ) {
         val tools = if (vaultUri != null) {
             val vault = VaultRepository(app, Uri.parse(vaultUri))
-            ToolRegistry(VaultTools.all(vault, AttachmentStaging()))
+            ToolRegistry(VaultTools.all(vault, attachmentStaging))
         } else {
             ToolRegistry(emptyList())
         }
