@@ -126,7 +126,14 @@ fun ChatScreen(
             }
             if (ui.streaming.isNotEmpty()) {
                 TermText(text = ui.streaming, color = TermColor.Fg)
-            } else if (ui.isStreaming) {
+            }
+            // Keep the spinner up until the agent finishes the turn (TurnComplete /
+            // Error) or asks the user for approval. Streamed text and spinner can
+            // coexist so it's clear juni is still working between deltas.
+            val awaitingApproval = ui.items.any {
+                it is ChatItem.ToolCall && it.state is ToolState.Pending
+            }
+            if (ui.isStreaming && !awaitingApproval) {
                 TermSpinner(label = ui.thinkingWord)
             }
         }
