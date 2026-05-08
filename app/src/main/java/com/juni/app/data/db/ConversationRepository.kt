@@ -31,6 +31,12 @@ class ConversationRepository(
 
     suspend fun delete(id: String) = conversationDao.delete(id)
 
+    suspend fun deleteAll(): Int {
+        val n = conversationDao.count()
+        conversationDao.deleteAll()
+        return n
+    }
+
     suspend fun loadMessages(conversationId: String): List<Message> =
         messageDao.forConversation(conversationId).map { row ->
             Message(

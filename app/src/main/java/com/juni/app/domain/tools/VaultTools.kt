@@ -23,6 +23,7 @@ object VaultTools {
         vault: VaultRepository,
         attachmentStaging: AttachmentStaging,
         onClarifyingQuestion: (question: String) -> Unit = {},
+        onRenameChat: (newTitle: String) -> Unit = {},
     ): List<Tool> = listOf(
         listFiles(vault),
         readNote(vault),
@@ -32,6 +33,7 @@ object VaultTools {
         searchNotes(vault),
         saveAttachment(vault, attachmentStaging),
         askClarifyingQuestion(onClarifyingQuestion),
+        renameChat(onRenameChat),
     )
 
     private fun listFiles(vault: VaultRepository): Tool = object : Tool {
@@ -213,6 +215,27 @@ object VaultTools {
             val question = input.string("question") ?: return ToolResult("Missing 'question'.", isError = true)
             onClarifyingQuestion(question)
             return ToolResult("Asked: $question")
+        }
+    }
+
+    private fun renameChat(onRenameChat: (String) -> Unit): Tool = object : Tool {
+        override val spec = ToolSpec(
+            name = "rename_chat",
+            description = "Rename the current chat to a short descriptive title (3 to 6 words) summarising " +
+                "what it is about. Call this once after your first substantive response so the conversation " +
+                "list shows something meaningful instead of the default themed name.",
+            inputSchema = objectSchema(
+                "title" to stringField("Short descriptive title for this chat."),
+                required = listOf("title"),
+            ),
+        )
+
+        override suspend fun execute(input: JsonObject): ToolResult {
+            val title = input.string("title")?.trim()
+                ?: return ToolResult("Missing 'title'.", isError = true)
+            if (title.isEmpty()) return ToolResult("Title is empty.", isError = true)
+            onRenameChat(title)
+            return ToolResult("Renamed chat to \"$title\".")
         }
     }
 

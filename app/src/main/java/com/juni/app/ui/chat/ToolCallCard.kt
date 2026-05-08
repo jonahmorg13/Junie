@@ -22,14 +22,9 @@ fun ToolCallCard(
     item: ChatItem.ToolCall,
     onApprove: (String) -> Unit,
     onReject: (String) -> Unit,
+    onOpenInObsidian: ((path: String) -> Unit)? = null,
 ) {
     val title = "tool · ${item.name}"
-    val accentColor = when (item.state) {
-        is ToolState.Pending -> TermColor.Accent
-        is ToolState.Running -> TermColor.Accent
-        is ToolState.Done -> if ((item.state as ToolState.Done).result.isError) TermColor.Red else TermColor.Green
-        is ToolState.Rejected -> TermColor.Red
-    }
 
     TermBox(title = title) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -54,6 +49,17 @@ fun ToolCallCard(
                 is ToolState.Done -> {
                     val color = if (state.result.isError) TermColor.Red else TermColor.Dim
                     TermText(text = state.result.content.take(800), color = color)
+                    val openablePath = if (!state.result.isError) {
+                        openableNotePath(item.name, item.input)
+                    } else null
+                    if (openablePath != null && onOpenInObsidian != null) {
+                        Spacer(Modifier.height(2.dp))
+                        TermButton(
+                            label = "open in obsidian",
+                            color = TermColor.Accent,
+                            onClick = { onOpenInObsidian(openablePath) },
+                        )
+                    }
                 }
                 is ToolState.Rejected -> {
                     TermText(
@@ -64,6 +70,13 @@ fun ToolCallCard(
             }
         }
     }
+}
+
+/** For tools that produce a vault-relative .md path, return it so the chat can offer "open in obsidian". */
+private fun openableNotePath(toolName: String, input: JsonObject): String? = when (toolName) {
+    "create_note", "edit_note" -> input.string("path")?.takeIf { it.isNotEmpty() }
+    "move_note" -> input.string("to")?.takeIf { it.isNotEmpty() }
+    else -> null
 }
 
 @Composable

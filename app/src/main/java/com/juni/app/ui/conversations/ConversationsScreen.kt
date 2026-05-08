@@ -1,6 +1,8 @@
 package com.juni.app.ui.conversations
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -75,7 +77,6 @@ fun ConversationsScreen(
                 items(list, key = { it.id }) { conversation ->
                     ConversationRow(
                         conversation = conversation,
-                        providerLabel = vm.providerLabel(conversation),
                         onTap = { onOpenConversation(conversation.id) },
                         onRename = { pendingRename = conversation },
                         onDelete = { pendingDelete = conversation },
@@ -114,23 +115,26 @@ fun ConversationsScreen(
 @Composable
 private fun ConversationRow(
     conversation: ConversationEntity,
-    providerLabel: String,
     onTap: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val timestamp = remember(conversation.updatedAt) { formatRelative(conversation.updatedAt) }
-    TermBox {
+    val rowClick = remember { MutableInteractionSource() }
+
+    TermBox(
+        modifier = Modifier.clickable(
+            interactionSource = rowClick,
+            indication = null,
+            onClick = onTap,
+        ),
+    ) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Column {
                 TermText(text = "▸ ${conversation.title}", color = TermColor.Fg)
-                TermText(
-                    text = "$timestamp · $providerLabel · ${conversation.modelId}",
-                    color = TermColor.Muted,
-                )
+                TermText(text = timestamp, color = TermColor.Muted)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TermButton(label = "open", color = TermColor.Accent, onClick = onTap)
                 TermButton(label = "rename", onClick = onRename)
                 TermButton(label = "delete", color = TermColor.Red, onClick = onDelete)
             }

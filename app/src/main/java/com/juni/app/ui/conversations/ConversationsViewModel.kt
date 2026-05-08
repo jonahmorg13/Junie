@@ -46,6 +46,4 @@ class ConversationsViewModel : ViewModel() {
         }
     }
 
-    fun providerLabel(entity: ConversationEntity): String =
-        ProviderId.fromKey(entity.providerId).label
 }

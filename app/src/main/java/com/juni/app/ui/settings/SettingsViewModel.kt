@@ -84,5 +84,12 @@ class SettingsViewModel : ViewModel() {
         }
     }
 
+    fun deleteAllConversations() {
+        viewModelScope.launch {
+            val n = app.conversationRepository.deleteAll()
+            Toaster.success(if (n == 0) "no conversations to delete" else "deleted $n conversation${if (n == 1) "" else "s"}")
+        }
+    }
+
     suspend fun currentSettings(): Settings = app.appSettings.flow.first()
 }

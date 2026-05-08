@@ -60,6 +60,8 @@ fun SettingsScreen(
 
     var pendingResetPrompt by remember { mutableStateOf(false) }
     var pendingClearVault by remember { mutableStateOf(false) }
+    var pendingDeleteAll by remember { mutableStateOf(false) }
+    var section by remember { mutableStateOf(SettingsSection.AI_PROVIDER) }
 
     Column(
         modifier = Modifier
@@ -78,74 +80,33 @@ fun SettingsScreen(
         }
         TermDivider()
 
+        SectionSelector(current = section, onSelect = { section = it })
+        TermDivider()
+
         if (settings == null) {
             TermText(text = "loading…", color = TermColor.Dim)
             return@Column
         }
 
-        TermText(text = "ai provider", color = TermColor.Accent)
-        TermBox {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                ProviderId.entries.forEach { provider ->
-                    val selected = provider == settings.providerId
-                    val marker = if (selected) "(•)" else "( )"
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        TermButton(
-                            label = "$marker ${provider.label}",
-                            color = if (selected) TermColor.Accent else TermColor.Fg,
-                            onClick = { vm.selectProvider(provider) },
-                        )
-                    }
-                }
-            }
-        }
-
-        ProviderId.entries.forEach { provider ->
-            ProviderConfigBox(
-                provider = provider,
-                model = settings.modelByProvider[provider].orEmpty(),
-                apiKey = ui.apiKeyByProvider[provider].orEmpty(),
-                ollamaBaseUrl = settings.ollamaBaseUrl,
-                onModelChange = { vm.setModel(provider, it) },
-                onApiKeyChange = { vm.setApiKey(provider, it) },
-                onOllamaUrlChange = { vm.setOllamaBaseUrl(it) },
+        when (section) {
+            SettingsSection.AI_PROVIDER -> AiProviderSection(
+                settings = settings,
+                ui = ui,
+                vm = vm,
             )
-        }
-
-        Spacer(Modifier.height(8.dp))
-        TermText(text = "system prompt", color = TermColor.Accent)
-        SystemPromptBox(
-            value = settings.systemPrompt,
-            onChange = vm::setSystemPrompt,
-            onReset = { pendingResetPrompt = true },
-        )
-
-        Spacer(Modifier.height(8.dp))
-        TermText(text = "obsidian vault", color = TermColor.Accent)
-        TermBox(title = "vault folder") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val display = settings.vaultUri
-                    ?.let { Uri.decode(it) }
-                    ?.substringAfterLast("/document/")
-                    ?: "not set"
-                TermText(
-                    text = "path: $display",
-                    color = if (settings.vaultUri == null) TermColor.Muted else TermColor.Fg,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TermButton(label = "pick folder", onClick = { pickVault.launch(null) })
-                    if (settings.vaultUri != null) {
-                        TermButton(
-                            label = "clear",
-                            color = TermColor.Red,
-                            onClick = { pendingClearVault = true },
-                        )
-                    }
-                }
-            }
+            SettingsSection.SYSTEM_PROMPT -> SystemPromptSection(
+                value = settings.systemPrompt,
+                vm = vm,
+                onResetClicked = { pendingResetPrompt = true },
+            )
+            SettingsSection.VAULT -> VaultSection(
+                vaultUri = settings.vaultUri,
+                onPick = { pickVault.launch(null) },
+                onClearClicked = { pendingClearVault = true },
+            )
+            SettingsSection.DATA -> DataSection(
+                onDeleteAllClicked = { pendingDeleteAll = true },
+            )
         }
     }
 
@@ -172,6 +133,139 @@ fun SettingsScreen(
             },
             onDismiss = { pendingClearVault = false },
         )
+    }
+    if (pendingDeleteAll) {
+        TermConfirm(
+            title = "delete all chats",
+            message = "permanently delete every conversation? this cannot be undone.",
+            confirmLabel = "delete all",
+            onConfirm = {
+                vm.deleteAllConversations()
+                pendingDeleteAll = false
+            },
+            onDismiss = { pendingDeleteAll = false },
+        )
+    }
+}
+
+private enum class SettingsSection(val label: String) {
+    AI_PROVIDER("ai provider"),
+    SYSTEM_PROMPT("system prompt"),
+    VAULT("vault"),
+    DATA("data"),
+}
+
+@Composable
+private fun SectionSelector(
+    current: SettingsSection,
+    onSelect: (SettingsSection) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SettingsSection.entries.forEach { sec ->
+            val selected = sec == current
+            TermButton(
+                label = (if (selected) "▸ " else "  ") + sec.label,
+                color = if (selected) TermColor.Accent else TermColor.Fg,
+                onClick = { onSelect(sec) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AiProviderSection(
+    settings: com.juni.app.data.prefs.Settings,
+    ui: SettingsUi,
+    vm: SettingsViewModel,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        TermBox(title = "active provider") {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                ProviderId.entries.forEach { provider ->
+                    val selected = provider == settings.providerId
+                    val marker = if (selected) "(•)" else "( )"
+                    TermButton(
+                        label = "$marker ${provider.label}",
+                        color = if (selected) TermColor.Accent else TermColor.Fg,
+                        onClick = { vm.selectProvider(provider) },
+                    )
+                }
+            }
+        }
+        ProviderId.entries.forEach { provider ->
+            ProviderConfigBox(
+                provider = provider,
+                model = settings.modelByProvider[provider].orEmpty(),
+                apiKey = ui.apiKeyByProvider[provider].orEmpty(),
+                ollamaBaseUrl = settings.ollamaBaseUrl,
+                onModelChange = { vm.setModel(provider, it) },
+                onApiKeyChange = { vm.setApiKey(provider, it) },
+                onOllamaUrlChange = { vm.setOllamaBaseUrl(it) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SystemPromptSection(
+    value: String,
+    vm: SettingsViewModel,
+    onResetClicked: () -> Unit,
+) {
+    SystemPromptBox(
+        value = value,
+        onChange = vm::setSystemPrompt,
+        onReset = onResetClicked,
+    )
+}
+
+@Composable
+private fun VaultSection(
+    vaultUri: String?,
+    onPick: () -> Unit,
+    onClearClicked: () -> Unit,
+) {
+    TermBox(title = "vault folder") {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val display = vaultUri
+                ?.let { Uri.decode(it) }
+                ?.substringAfterLast("/document/")
+                ?: "not set"
+            TermText(
+                text = "path: $display",
+                color = if (vaultUri == null) TermColor.Muted else TermColor.Fg,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TermButton(label = "pick folder", onClick = onPick)
+                if (vaultUri != null) {
+                    TermButton(
+                        label = "clear",
+                        color = TermColor.Red,
+                        onClick = onClearClicked,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DataSection(
+    onDeleteAllClicked: () -> Unit,
+) {
+    TermBox(title = "conversations") {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            TermText(
+                text = "wipe all saved chats and their messages from this device. " +
+                    "the vault contents juni already wrote are not affected.",
+                color = TermColor.Dim,
+            )
+            TermButton(
+                label = "delete all chats",
+                color = TermColor.Red,
+                onClick = onDeleteAllClicked,
+            )
+        }
     }
 }
 

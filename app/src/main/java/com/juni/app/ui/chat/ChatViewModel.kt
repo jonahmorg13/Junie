@@ -8,7 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.juni.app.JuniApp
 import com.juni.app.data.db.ConversationEntity
 import com.juni.app.data.prefs.ProviderId
-import com.juni.app.data.provider.ClaudeProvider
+import com.juni.app.data.provider.AiProvider
+import com.juni.app.data.provider.ProviderRegistry
 import com.juni.app.data.vault.VaultRepository
 import com.juni.app.domain.agent.AgentEvent
 import com.juni.app.domain.agent.AgentLoop
@@ -36,10 +37,11 @@ data class ChatUi(
     val statusLine: String = "",
     val thinkingWord: String = "thinking",
     val title: String = "",
+    val vaultUri: String? = null,
 )
 
 private val AUTO_APPROVE = setOf(
-    "list_files", "read_note", "search_notes", "ask_clarifying_question",
+    "list_files", "read_note", "search_notes", "ask_clarifying_question", "rename_chat",
 )
 
 private val VAULT_WRITE_TOOLS = setOf(
@@ -76,6 +78,7 @@ class ChatViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
             val s = app.appSettings.flow.first()
             _ui.value = _ui.value.copy(
                 statusLine = "${s.providerId.label} · ${s.modelByProvider[s.providerId]}",
+                vaultUri = s.vaultUri,
             )
 
             conversation = repo.get(conversationId)
@@ -95,16 +98,13 @@ class ChatViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
 
         currentJob = viewModelScope.launch {
             val settings = app.appSettings.flow.first()
-            val provider = settings.providerId
-            val key = app.securePrefs.apiKey(provider)
-            if (provider != ProviderId.CLAUDE) {
-                appendItem(ChatItem.SystemError("Only Claude is wired up so far."))
+            val resolution = ProviderRegistry.resolveFor(settings, app.securePrefs)
+            if (resolution is ProviderRegistry.Resolution.Incomplete) {
+                appendItem(ChatItem.SystemError(resolution.message))
+                Toaster.error(resolution.message)
                 return@launch
             }
-            if (key.isBlank()) {
-                appendItem(ChatItem.SystemError("No Claude API key set. Add one in Settings."))
-                return@launch
-            }
+            val ready = resolution as ProviderRegistry.Resolution.Ready
 
             // Build user message and persist it immediately (so it survives a mid-turn kill).
             val content = buildList<MessageContent> {
@@ -129,8 +129,8 @@ class ChatViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
 
             try {
                 runAgent(
-                    claude = ClaudeProvider(key),
-                    model = settings.modelByProvider[ProviderId.CLAUDE].orEmpty(),
+                    provider = ready.provider,
+                    model = ready.model,
                     vaultUri = settings.vaultUri,
                     systemPrompt = settings.systemPrompt,
                 )
@@ -179,19 +179,34 @@ class ChatViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
         }
     }
 
+    /** Called when the agent's rename_chat tool fires. Persists + updates UI. */
+    private fun applyAgentRename(newTitle: String) {
+        val title = newTitle.trim().ifEmpty { return }
+        viewModelScope.launch {
+            repo.setTitle(conversationId, title)
+            _ui.value = _ui.value.copy(title = title)
+        }
+    }
+
     private suspend fun runAgent(
-        claude: ClaudeProvider,
+        provider: AiProvider,
         model: String,
         vaultUri: String?,
         systemPrompt: String,
     ) {
         val tools = if (vaultUri != null) {
             val vault = VaultRepository(app, Uri.parse(vaultUri))
-            ToolRegistry(VaultTools.all(vault, attachmentStaging))
+            ToolRegistry(
+                VaultTools.all(
+                    vault = vault,
+                    attachmentStaging = attachmentStaging,
+                    onRenameChat = { newTitle -> applyAgentRename(newTitle) },
+                ),
+            )
         } else {
             ToolRegistry(emptyList())
         }
-        val loop = AgentLoop(provider = claude, tools = tools, model = model, systemPrompt = systemPrompt)
+        val loop = AgentLoop(provider = provider, tools = tools, model = model, systemPrompt = systemPrompt)
         val streamed = StringBuilder()
 
         loop.run(

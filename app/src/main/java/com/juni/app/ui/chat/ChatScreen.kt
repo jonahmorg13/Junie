@@ -1,7 +1,12 @@
 package com.juni.app.ui.chat
 
 import androidx.compose.foundation.Image
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,9 +28,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.juni.app.ui.terminal.Toaster
 import com.juni.app.ui.terminal.TermBox
 import com.juni.app.ui.terminal.TermButton
 import com.juni.app.ui.terminal.TermColor
@@ -46,7 +53,14 @@ fun ChatScreen(
     val pendingImages by vm.pendingImages.collectAsState()
     var draft by remember { mutableStateOf("") }
     var renameDialogOpen by remember { mutableStateOf(false) }
+    val titleClickSource = remember { MutableInteractionSource() }
     val transcriptScroll = rememberScrollState()
+    val context = LocalContext.current
+    val obsidianHandler: ((String) -> Unit)? = ui.vaultUri?.let { vaultUri ->
+        { path ->
+            openInObsidian(context, vaultUri, path)
+        }
+    }
 
     LaunchedEffect(ui.items.size, ui.streaming.length, ui.isStreaming, pendingImages.size) {
         transcriptScroll.scrollTo(transcriptScroll.maxValue)
@@ -63,8 +77,12 @@ fun ChatScreen(
                 text = ui.title.ifEmpty { "juni" },
                 color = TermColor.Accent,
                 bold = true,
+                modifier = Modifier.clickable(
+                    interactionSource = titleClickSource,
+                    indication = null,
+                    onClick = { renameDialogOpen = true },
+                ),
             )
-            TermButton(label = "rename", onClick = { renameDialogOpen = true })
         }
         TermText(text = ui.statusLine, color = TermColor.Dim)
         TermDivider()
@@ -96,6 +114,7 @@ fun ChatScreen(
                             item = item,
                             onApprove = { vm.approve(it) },
                             onReject = { vm.reject(it) },
+                            onOpenInObsidian = obsidianHandler,
                         )
                     is ChatItem.SystemError ->
                         TermBox(title = "error") { TermText(text = item.text, color = TermColor.Red) }
@@ -127,6 +146,7 @@ fun ChatScreen(
                 placeholder = if (ui.isStreaming) "streaming…" else "ask juni…",
                 singleLine = false,
                 imeAction = ImeAction.Send,
+                showBorder = false,
                 onSubmit = {
                     val t = draft
                     if ((t.isNotBlank() || pendingImages.isNotEmpty()) && !ui.isStreaming) {
@@ -166,6 +186,39 @@ fun ChatScreen(
             onDismiss = { renameDialogOpen = false },
         )
     }
+}
+
+/**
+ * Build an `obsidian://open?vault=…&file=…` URI from the SAF tree URI and a
+ * vault-relative path, then launch it. Obsidian must be installed and the
+ * folder must already be registered as a vault inside Obsidian (which it
+ * usually is, by folder name).
+ */
+private fun openInObsidian(
+    context: android.content.Context,
+    vaultUri: String,
+    relativePath: String,
+) {
+    val vaultName = extractVaultName(vaultUri)
+    if (vaultName.isNullOrEmpty()) {
+        Toaster.error("Couldn't determine vault name")
+        return
+    }
+    val withoutExt = if (relativePath.endsWith(".md")) relativePath.dropLast(3) else relativePath
+    val url = "obsidian://open?vault=" + Uri.encode(vaultName) +
+        "&file=" + Uri.encode(withoutExt)
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    try {
+        context.startActivity(intent)
+    } catch (_: ActivityNotFoundException) {
+        Toaster.error("Obsidian not installed")
+    }
+}
+
+private fun extractVaultName(treeUri: String): String? {
+    val decoded = Uri.decode(treeUri) ?: return null
+    return decoded.substringAfterLast('/').substringAfterLast(':').takeIf { it.isNotEmpty() }
 }
 
 @Composable
