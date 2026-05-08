@@ -1,5 +1,6 @@
 package com.juni.app.ui.chatdebug
 
+import android.net.Uri
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,11 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -25,8 +28,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.juni.app.JuniApp
 import com.juni.app.data.prefs.ProviderId
 import com.juni.app.data.provider.ClaudeProvider
+import com.juni.app.data.vault.VaultRepository
+import com.juni.app.domain.agent.AgentEvent
+import com.juni.app.domain.agent.AgentLoop
+import com.juni.app.domain.agent.ApprovalResult
 import com.juni.app.domain.agent.Message
-import com.juni.app.domain.agent.StreamEvent
+import com.juni.app.domain.tools.AttachmentStaging
+import com.juni.app.domain.tools.ToolRegistry
+import com.juni.app.domain.tools.VaultTools
 import com.juni.app.ui.terminal.TermBox
 import com.juni.app.ui.terminal.TermButton
 import com.juni.app.ui.terminal.TermColor
@@ -58,6 +67,13 @@ class ChatDebugViewModel : ViewModel() {
     private val _ui = MutableStateFlow(ChatDebugUi())
     val ui: StateFlow<ChatDebugUi> = _ui.asStateFlow()
 
+    /**
+     * Canonical conversation history sent to the API on every turn. Includes
+     * assistant messages (text + tool_use blocks) and the user-role
+     * tool_result batches that follow them — Claude's API requires the pairs.
+     */
+    private val history: MutableList<Message> = mutableListOf()
+
     private var currentJob: Job? = null
 
     init {
@@ -78,80 +94,86 @@ class ChatDebugViewModel : ViewModel() {
             val provider = settings.providerId
             val key = app.securePrefs.apiKey(provider)
             if (provider != ProviderId.CLAUDE) {
-                _ui.value = _ui.value.copy(
-                    turns = _ui.value.turns + Turn(
-                        role = "system",
-                        text = "Only Claude is wired up so far. Switch provider in Settings.",
-                        isError = true,
-                    ),
-                )
+                appendTurn(Turn("system", "Only Claude is wired up so far.", isError = true))
                 return@launch
             }
             if (key.isBlank()) {
-                _ui.value = _ui.value.copy(
-                    turns = _ui.value.turns + Turn(
-                        role = "system",
-                        text = "No Claude API key set. Add one in Settings.",
-                        isError = true,
-                    ),
-                )
+                appendTurn(Turn("system", "No Claude API key set. Add one in Settings.", isError = true))
                 return@launch
             }
 
-            val nextTurns = _ui.value.turns + Turn("user", text)
+            val userMessage = Message.userText(text)
+            history += userMessage
+            appendTurn(Turn("user", text))
             _ui.value = _ui.value.copy(
-                turns = nextTurns,
                 streaming = "",
                 isStreaming = true,
                 thinkingWord = randomThinkingWord(),
             )
 
-            val history = nextTurns.map {
-                if (it.role == "user") Message.userText(it.text) else Message.assistantText(it.text)
-            }
-            val claude = ClaudeProvider(key)
-            val streamed = StringBuilder()
             try {
-                claude.streamTurn(
-                    systemPrompt = "You are juni, a brief and friendly assistant.",
-                    messages = history,
-                    tools = emptyList(),
+                runAgent(
+                    claude = ClaudeProvider(key),
                     model = settings.modelByProvider[ProviderId.CLAUDE].orEmpty(),
-                ).collect { event ->
-                    when (event) {
-                        is StreamEvent.TextDelta -> {
-                            streamed.append(event.text)
-                            _ui.value = _ui.value.copy(streaming = streamed.toString())
-                        }
-                        is StreamEvent.ToolCallEvent -> Unit // ignored in debug screen
-                        is StreamEvent.TurnEnd -> {
-                            _ui.value = _ui.value.copy(
-                                turns = _ui.value.turns + Turn("assistant", streamed.toString()),
-                                streaming = "",
-                                isStreaming = false,
-                            )
-                        }
-                        is StreamEvent.Error -> {
-                            _ui.value = _ui.value.copy(
-                                turns = _ui.value.turns + Turn(
-                                    role = "system",
-                                    text = event.message,
-                                    isError = true,
-                                ),
-                                streaming = "",
-                                isStreaming = false,
-                            )
-                        }
-                    }
-                }
-            } catch (t: Throwable) {
-                _ui.value = _ui.value.copy(
-                    turns = _ui.value.turns + Turn("system", t.message ?: "stream failed", isError = true),
-                    streaming = "",
-                    isStreaming = false,
+                    vaultUri = settings.vaultUri,
                 )
+            } catch (t: Throwable) {
+                appendTurn(Turn("system", t.message ?: "stream failed", isError = true))
+                _ui.value = _ui.value.copy(streaming = "", isStreaming = false)
             }
         }
+    }
+
+    private suspend fun runAgent(
+        claude: ClaudeProvider,
+        model: String,
+        vaultUri: String?,
+    ) {
+        val tools = if (vaultUri != null) {
+            val vault = VaultRepository(app, Uri.parse(vaultUri))
+            ToolRegistry(VaultTools.all(vault, AttachmentStaging()))
+        } else {
+            ToolRegistry(emptyList())
+        }
+        val loop = AgentLoop(provider = claude, tools = tools, model = model)
+        val streamed = StringBuilder()
+
+        loop.run(
+            initialMessages = history.toList(),
+            approvalGate = { _, _, _ -> ApprovalResult.Approve }, // task #8 will add the UI gate
+        ).collect { event ->
+            when (event) {
+                is AgentEvent.TextDelta -> {
+                    streamed.append(event.text)
+                    _ui.value = _ui.value.copy(streaming = streamed.toString())
+                }
+                is AgentEvent.AssistantMessageDone -> {
+                    history += event.message
+                    if (streamed.isNotEmpty()) {
+                        appendTurn(Turn("assistant", streamed.toString()))
+                        streamed.clear()
+                        _ui.value = _ui.value.copy(streaming = "")
+                    }
+                }
+                is AgentEvent.ToolResultsBatch -> history += event.message
+                is AgentEvent.PendingTool -> appendTurn(Turn("tool", "→ ${event.name} ${event.input}"))
+                is AgentEvent.ToolExecuted -> {
+                    val prefix = if (event.result.isError) "✗" else "✓"
+                    val preview = event.result.content.lineSequence().take(3).joinToString("\n")
+                    appendTurn(Turn("tool", "$prefix ${event.name}\n$preview"))
+                }
+                is AgentEvent.ToolRejected -> appendTurn(Turn("tool", "✗ ${event.name} (rejected)"))
+                is AgentEvent.TurnComplete -> _ui.value = _ui.value.copy(streaming = "", isStreaming = false)
+                is AgentEvent.Error -> {
+                    appendTurn(Turn("system", event.message, isError = true))
+                    _ui.value = _ui.value.copy(streaming = "", isStreaming = false)
+                }
+            }
+        }
+    }
+
+    private fun appendTurn(turn: Turn) {
+        _ui.value = _ui.value.copy(turns = _ui.value.turns + turn)
     }
 
     fun stop() {
@@ -160,6 +182,7 @@ class ChatDebugViewModel : ViewModel() {
     }
 
     fun clear() {
+        history.clear()
         _ui.value = _ui.value.copy(turns = emptyList(), streaming = "", isStreaming = false)
     }
 }
@@ -169,12 +192,18 @@ fun ChatDebugScreen(onBack: () -> Unit) {
     val vm: ChatDebugViewModel = viewModel()
     val ui by vm.ui.collectAsState()
     var draft by remember { mutableStateOf("") }
+    val transcriptScroll = rememberScrollState()
+
+    // Auto-scroll to bottom on new turn or streaming token.
+    LaunchedEffect(ui.turns.size, ui.streaming.length, ui.isStreaming) {
+        transcriptScroll.scrollTo(transcriptScroll.maxValue)
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             TermButton(label = "back", onClick = onBack)
             TermText(text = "chat debug", color = TermColor.Accent, bold = true)
@@ -186,7 +215,7 @@ fun ChatDebugScreen(onBack: () -> Unit) {
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(transcriptScroll)
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -194,6 +223,9 @@ fun ChatDebugScreen(onBack: () -> Unit) {
                 when (turn.role) {
                     "user" -> Row { TermText(text = "❯ ${turn.text}", color = TermColor.Accent) }
                     "assistant" -> TermText(text = turn.text, color = TermColor.Fg)
+                    "tool" -> TermBox(title = "tool") {
+                        TermText(text = turn.text, color = TermColor.Dim)
+                    }
                     else -> TermBox(title = "error") {
                         TermText(text = turn.text, color = TermColor.Red)
                     }
@@ -208,7 +240,7 @@ fun ChatDebugScreen(onBack: () -> Unit) {
 
         TermDivider()
         Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             TermInput(
                 modifier = Modifier.weight(1f),
                 value = draft,
