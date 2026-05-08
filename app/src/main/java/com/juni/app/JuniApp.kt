@@ -1,6 +1,8 @@
 package com.juni.app
 
 import android.app.Application
+import com.juni.app.data.db.AppDatabase
+import com.juni.app.data.db.ConversationRepository
 import com.juni.app.data.prefs.AppSettings
 import com.juni.app.data.prefs.SecurePrefs
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,6 +13,9 @@ class JuniApp : Application() {
         private set
 
     lateinit var appSettings: AppSettings
+        private set
+
+    lateinit var conversationRepository: ConversationRepository
         private set
 
     /**
@@ -25,6 +30,8 @@ class JuniApp : Application() {
         instance = this
         securePrefs = SecurePrefs(this)
         appSettings = AppSettings(this)
+        val db = AppDatabase.build(this)
+        conversationRepository = ConversationRepository(db.conversations(), db.messages())
     }
 
     fun addComposerImage(bytes: ByteArray) {

@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.sp
 import com.juni.app.R
 
 val TermBg = Color(0xFF0E0E10)
+/** Slightly lifted surface for floating elements (toasts, dialogs) — pops against TermBg. */
+val TermSurface = Color(0xFF1F1F25)
 val TermFg = Color(0xFFC8C8C2)
 val TermDim = Color(0xFF888884)
 val TermAccent = Color(0xFFE97C3C)

@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.juni.app.ui.AppNavHost
+import com.juni.app.ui.terminal.ToastHost
 import com.juni.app.ui.theme.JuniTheme
 
 class MainActivity : ComponentActivity() {
@@ -13,7 +14,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             JuniTheme {
-                AppNavHost()
+                ToastHost {
+                    AppNavHost()
+                }
             }
         }
     }

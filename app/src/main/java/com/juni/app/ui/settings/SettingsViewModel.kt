@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.juni.app.JuniApp
 import com.juni.app.data.prefs.ProviderId
 import com.juni.app.data.prefs.Settings
+import com.juni.app.ui.terminal.Toaster
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,11 +33,15 @@ class SettingsViewModel : ViewModel() {
     }
 
     fun selectProvider(provider: ProviderId) {
-        viewModelScope.launch { app.appSettings.setProvider(provider) }
+        viewModelScope.launch {
+            app.appSettings.setProvider(provider)
+            Toaster.success("provider: ${provider.label}")
+        }
     }
 
     fun setModel(provider: ProviderId, model: String) {
         viewModelScope.launch { app.appSettings.setModel(provider, model) }
+        // Model edits fire on every keystroke; no toast — too chatty.
     }
 
     fun setApiKey(provider: ProviderId, value: String) {
@@ -44,6 +49,12 @@ class SettingsViewModel : ViewModel() {
         _ui.value = _ui.value.copy(
             apiKeyByProvider = _ui.value.apiKeyByProvider + (provider to value),
         )
+        // No toast on every keystroke; the masked field itself is the feedback.
+    }
+
+    fun clearApiKey(provider: ProviderId) {
+        setApiKey(provider, "")
+        Toaster.success("${provider.label} key cleared")
     }
 
     fun setOllamaBaseUrl(url: String) {
@@ -51,15 +62,26 @@ class SettingsViewModel : ViewModel() {
     }
 
     fun setVaultUri(uri: String?) {
-        viewModelScope.launch { app.appSettings.setVaultUri(uri) }
+        viewModelScope.launch {
+            app.appSettings.setVaultUri(uri)
+            if (uri == null) Toaster.success("vault cleared")
+            // Setting a fresh vault URI is toasted from the SAF picker callback so
+            // we can include the chosen path.
+        }
     }
 
     fun setSystemPrompt(value: String) {
-        viewModelScope.launch { app.appSettings.setSystemPrompt(value) }
+        viewModelScope.launch {
+            app.appSettings.setSystemPrompt(value)
+            Toaster.success("system prompt saved")
+        }
     }
 
     fun resetSystemPrompt() {
-        viewModelScope.launch { app.appSettings.resetSystemPrompt() }
+        viewModelScope.launch {
+            app.appSettings.resetSystemPrompt()
+            Toaster.success("system prompt reset")
+        }
     }
 
     suspend fun currentSettings(): Settings = app.appSettings.flow.first()

@@ -29,6 +29,7 @@ import com.juni.app.data.prefs.ProviderId
 import com.juni.app.ui.terminal.TermBox
 import com.juni.app.ui.terminal.TermButton
 import com.juni.app.ui.terminal.TermColor
+import com.juni.app.ui.terminal.TermConfirm
 import com.juni.app.ui.terminal.TermDivider
 import com.juni.app.ui.terminal.TermInput
 import com.juni.app.ui.terminal.TermText
@@ -50,8 +51,15 @@ fun SettingsScreen(
                 Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             context.contentResolver.takePersistableUriPermission(uri, flags)
             vm.setVaultUri(uri.toString())
+            com.juni.app.ui.terminal.Toaster.success(
+                "vault set: " + (Uri.decode(uri.toString())?.substringAfterLast("/document/")
+                    ?: uri.toString()),
+            )
         }
     }
+
+    var pendingResetPrompt by remember { mutableStateOf(false) }
+    var pendingClearVault by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -112,7 +120,7 @@ fun SettingsScreen(
         SystemPromptBox(
             value = settings.systemPrompt,
             onChange = vm::setSystemPrompt,
-            onReset = vm::resetSystemPrompt,
+            onReset = { pendingResetPrompt = true },
         )
 
         Spacer(Modifier.height(8.dp))
@@ -133,12 +141,37 @@ fun SettingsScreen(
                         TermButton(
                             label = "clear",
                             color = TermColor.Red,
-                            onClick = { vm.setVaultUri(null) },
+                            onClick = { pendingClearVault = true },
                         )
                     }
                 }
             }
         }
+    }
+
+    if (pendingResetPrompt) {
+        TermConfirm(
+            title = "reset prompt",
+            message = "discard your edits and restore the default system prompt?",
+            confirmLabel = "reset",
+            onConfirm = {
+                vm.resetSystemPrompt()
+                pendingResetPrompt = false
+            },
+            onDismiss = { pendingResetPrompt = false },
+        )
+    }
+    if (pendingClearVault) {
+        TermConfirm(
+            title = "clear vault",
+            message = "remove juni's access to your vault folder? you'll need to pick it again.",
+            confirmLabel = "clear",
+            onConfirm = {
+                vm.setVaultUri(null)
+                pendingClearVault = false
+            },
+            onDismiss = { pendingClearVault = false },
+        )
     }
 }
 

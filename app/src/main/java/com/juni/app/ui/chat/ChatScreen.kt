@@ -31,6 +31,7 @@ import com.juni.app.ui.terminal.TermButton
 import com.juni.app.ui.terminal.TermColor
 import com.juni.app.ui.terminal.TermDivider
 import com.juni.app.ui.terminal.TermInput
+import com.juni.app.ui.terminal.TermPromptDialog
 import com.juni.app.ui.terminal.TermSpinner
 import com.juni.app.ui.terminal.TermText
 import android.graphics.BitmapFactory
@@ -44,6 +45,7 @@ fun ChatScreen(
     val ui by vm.ui.collectAsState()
     val pendingImages by vm.pendingImages.collectAsState()
     var draft by remember { mutableStateOf("") }
+    var renameDialogOpen by remember { mutableStateOf(false) }
     val transcriptScroll = rememberScrollState()
 
     LaunchedEffect(ui.items.size, ui.streaming.length, ui.isStreaming, pendingImages.size) {
@@ -57,8 +59,12 @@ fun ChatScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TermButton(label = "back", onClick = onBack)
-            TermText(text = "juni", color = TermColor.Accent, bold = true)
-            TermButton(label = "clear", onClick = { vm.clear() })
+            TermText(
+                text = ui.title.ifEmpty { "juni" },
+                color = TermColor.Accent,
+                bold = true,
+            )
+            TermButton(label = "rename", onClick = { renameDialogOpen = true })
         }
         TermText(text = ui.statusLine, color = TermColor.Dim)
         TermDivider()
@@ -146,6 +152,19 @@ fun ChatScreen(
                 )
             }
         }
+    }
+
+    if (renameDialogOpen) {
+        TermPromptDialog(
+            title = "rename chat",
+            initialValue = ui.title,
+            placeholder = "new title…",
+            onConfirm = { newTitle ->
+                if (newTitle.isNotEmpty()) vm.rename(newTitle)
+                renameDialogOpen = false
+            },
+            onDismiss = { renameDialogOpen = false },
+        )
     }
 }
 
