@@ -108,6 +108,14 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(8.dp))
+        TermText(text = "system prompt", color = TermColor.Accent)
+        SystemPromptBox(
+            value = settings.systemPrompt,
+            onChange = vm::setSystemPrompt,
+            onReset = vm::resetSystemPrompt,
+        )
+
+        Spacer(Modifier.height(8.dp))
         TermText(text = "obsidian vault", color = TermColor.Accent)
         TermBox(title = "vault folder") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -207,6 +215,45 @@ private fun ProviderConfigBox(
                     } else {
                         androidx.compose.ui.text.input.PasswordVisualTransformation('•')
                     },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SystemPromptBox(
+    value: String,
+    onChange: (String) -> Unit,
+    onReset: () -> Unit,
+) {
+    var draft by remember(value) { mutableStateOf(value) }
+    val pristine = draft == value
+
+    TermBox(title = "agent behavior") {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            TermText(
+                text = "Goes in the system message on every turn. Tune carefully — small changes matter.",
+                color = TermColor.Dim,
+            )
+            TermInput(
+                value = draft,
+                onValueChange = { draft = it },
+                prompt = "  ",
+                placeholder = "system prompt…",
+                singleLine = false,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TermButton(
+                    label = if (pristine) "saved" else "save",
+                    color = if (pristine) TermColor.Muted else TermColor.Green,
+                    enabled = !pristine,
+                    onClick = { onChange(draft) },
+                )
+                TermButton(
+                    label = "reset to default",
+                    color = TermColor.Red,
+                    onClick = onReset,
                 )
             }
         }

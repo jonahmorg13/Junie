@@ -54,5 +54,13 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch { app.appSettings.setVaultUri(uri) }
     }
 
+    fun setSystemPrompt(value: String) {
+        viewModelScope.launch { app.appSettings.setSystemPrompt(value) }
+    }
+
+    fun resetSystemPrompt() {
+        viewModelScope.launch { app.appSettings.resetSystemPrompt() }
+    }
+
     suspend fun currentSettings(): Settings = app.appSettings.flow.first()
 }

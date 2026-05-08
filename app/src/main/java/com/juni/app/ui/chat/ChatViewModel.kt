@@ -115,6 +115,7 @@ class ChatViewModel : ViewModel() {
                     claude = ClaudeProvider(key),
                     model = settings.modelByProvider[ProviderId.CLAUDE].orEmpty(),
                     vaultUri = settings.vaultUri,
+                    systemPrompt = settings.systemPrompt,
                 )
             } catch (t: Throwable) {
                 appendItem(ChatItem.SystemError(t.message ?: "stream failed"))
@@ -159,6 +160,7 @@ class ChatViewModel : ViewModel() {
         claude: ClaudeProvider,
         model: String,
         vaultUri: String?,
+        systemPrompt: String,
     ) {
         val tools = if (vaultUri != null) {
             val vault = VaultRepository(app, Uri.parse(vaultUri))
@@ -166,7 +168,7 @@ class ChatViewModel : ViewModel() {
         } else {
             ToolRegistry(emptyList())
         }
-        val loop = AgentLoop(provider = claude, tools = tools, model = model)
+        val loop = AgentLoop(provider = claude, tools = tools, model = model, systemPrompt = systemPrompt)
         val streamed = StringBuilder()
 
         loop.run(

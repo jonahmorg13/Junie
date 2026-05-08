@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.juni.app.domain.agent.JUNI_SYSTEM_PROMPT
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -15,6 +16,7 @@ data class Settings(
     val modelByProvider: Map<ProviderId, String>,
     val vaultUri: String?,
     val ollamaBaseUrl: String,
+    val systemPrompt: String,
 )
 
 private val DEFAULT_MODELS = mapOf(
@@ -46,6 +48,14 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_OLLAMA_URL] = url }
     }
 
+    suspend fun setSystemPrompt(value: String) {
+        context.dataStore.edit { it[KEY_SYSTEM_PROMPT] = value }
+    }
+
+    suspend fun resetSystemPrompt() {
+        context.dataStore.edit { it.remove(KEY_SYSTEM_PROMPT) }
+    }
+
     private fun Preferences.toSettings(): Settings {
         val provider = ProviderId.fromKey(this[KEY_PROVIDER])
         val models = ProviderId.entries.associateWith { p ->
@@ -56,6 +66,7 @@ class AppSettings(private val context: Context) {
             modelByProvider = models,
             vaultUri = this[KEY_VAULT_URI],
             ollamaBaseUrl = this[KEY_OLLAMA_URL] ?: "http://localhost:11434",
+            systemPrompt = this[KEY_SYSTEM_PROMPT] ?: JUNI_SYSTEM_PROMPT,
         )
     }
 
@@ -66,5 +77,6 @@ class AppSettings(private val context: Context) {
         private val KEY_PROVIDER = stringPreferencesKey("provider")
         private val KEY_VAULT_URI = stringPreferencesKey("vault_uri")
         private val KEY_OLLAMA_URL = stringPreferencesKey("ollama_base_url")
+        private val KEY_SYSTEM_PROMPT = stringPreferencesKey("system_prompt")
     }
 }
