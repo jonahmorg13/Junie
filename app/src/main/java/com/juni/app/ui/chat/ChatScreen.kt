@@ -33,11 +33,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.juni.app.ui.terminal.Toaster
+import com.juni.app.domain.agent.ChatIntent
 import com.juni.app.ui.terminal.TermBox
 import com.juni.app.ui.terminal.TermButton
 import com.juni.app.ui.terminal.TermColor
 import com.juni.app.ui.terminal.TermDivider
 import com.juni.app.ui.terminal.TermInput
+import com.juni.app.ui.terminal.TermMenuItem
+import com.juni.app.ui.terminal.TermMenuSheet
 import com.juni.app.ui.terminal.TermPromptDialog
 import com.juni.app.ui.terminal.TermSpinner
 import com.juni.app.ui.terminal.TermText
@@ -53,6 +56,7 @@ fun ChatScreen(
     val pendingImages by vm.pendingImages.collectAsState()
     var draft by remember { mutableStateOf("") }
     var renameDialogOpen by remember { mutableStateOf(false) }
+    var intentMenuOpen by remember { mutableStateOf(false) }
     val titleClickSource = remember { MutableInteractionSource() }
     val transcriptScroll = rememberScrollState()
     val context = LocalContext.current
@@ -137,8 +141,23 @@ fun ChatScreen(
             )
         }
 
+        ui.pendingIntent?.let { intent ->
+            Spacer(Modifier.height(6.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                TermText(
+                    text = "▸ ${intent.label}: ${intent.short}",
+                    color = TermColor.Accent,
+                )
+                TermButton(label = "x", color = TermColor.Red, onClick = { vm.clearIntent() })
+            }
+        }
+
         Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
+            TermButton(label = "+", onClick = { intentMenuOpen = true }, enabled = !ui.isStreaming)
             TermInput(
                 modifier = Modifier.weight(1f),
                 value = draft,
@@ -184,6 +203,19 @@ fun ChatScreen(
                 renameDialogOpen = false
             },
             onDismiss = { renameDialogOpen = false },
+        )
+    }
+    if (intentMenuOpen) {
+        TermMenuSheet(
+            title = "send as…",
+            items = ChatIntent.entries.map {
+                TermMenuItem(key = it.name, label = it.label, description = it.short)
+            },
+            onPick = { key ->
+                vm.setIntent(ChatIntent.valueOf(key))
+                intentMenuOpen = false
+            },
+            onDismiss = { intentMenuOpen = false },
         )
     }
 }

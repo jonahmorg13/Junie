@@ -14,6 +14,7 @@ import com.juni.app.data.vault.VaultRepository
 import com.juni.app.domain.agent.AgentEvent
 import com.juni.app.domain.agent.AgentLoop
 import com.juni.app.domain.agent.ApprovalResult
+import com.juni.app.domain.agent.ChatIntent
 import com.juni.app.domain.agent.Message
 import com.juni.app.domain.agent.MessageContent
 import com.juni.app.domain.agent.Role
@@ -38,6 +39,7 @@ data class ChatUi(
     val thinkingWord: String = "thinking",
     val title: String = "",
     val vaultUri: String? = null,
+    val pendingIntent: ChatIntent? = null,
 )
 
 private val AUTO_APPROVE = setOf(
@@ -92,7 +94,21 @@ class ChatViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
     }
 
     fun send(input: String) {
-        val text = input.trim()
+        val rawText = input.trim()
+        val intent = _ui.value.pendingIntent
+        val text = if (intent != null) {
+            buildString {
+                append("[")
+                append(intent.instruction())
+                append("]")
+                if (rawText.isNotEmpty()) {
+                    append("\n\n")
+                    append(rawText)
+                }
+            }
+        } else {
+            rawText
+        }
         val images = app.composerImages.value
         if ((text.isEmpty() && images.isEmpty()) || _ui.value.isStreaming) return
 
@@ -119,12 +135,14 @@ class ChatViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
             history += userMessage
             repo.appendMessage(conversationId, userMessage)
 
-            appendItem(ChatItem.UserMessage(text = text, imageCount = images.size))
+            // Display only the user-typed text, not the bracketed intent prefix.
+            appendItem(ChatItem.UserMessage(text = rawText, imageCount = images.size))
             app.clearComposerImages()
             _ui.value = _ui.value.copy(
                 streaming = "",
                 isStreaming = true,
                 thinkingWord = randomThinkingWord(),
+                pendingIntent = null,
             )
 
             try {
@@ -168,6 +186,14 @@ class ChatViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
         val current = app.composerImages.value
         if (index !in current.indices) return
         app.composerImages.value = current.toMutableList().also { it.removeAt(index) }
+    }
+
+    fun setIntent(intent: ChatIntent) {
+        _ui.value = _ui.value.copy(pendingIntent = intent)
+    }
+
+    fun clearIntent() {
+        _ui.value = _ui.value.copy(pendingIntent = null)
     }
 
     fun rename(newTitle: String) {
