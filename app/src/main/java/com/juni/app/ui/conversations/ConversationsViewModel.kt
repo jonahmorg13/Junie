@@ -1,5 +1,6 @@
 package com.juni.app.ui.conversations
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.juni.app.JuniApp
@@ -41,6 +42,7 @@ class ConversationsViewModel : ViewModel() {
             val provider = s.providerId
             val model = s.modelByProvider[provider].orEmpty()
             val entity = repo.create(provider.key, model)
+            Log.d("juni-nav", "createNew → entity.id=${entity.id}")
             onCreated(entity.id)
         }
     }

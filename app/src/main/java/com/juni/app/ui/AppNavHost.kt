@@ -1,5 +1,6 @@
 package com.juni.app.ui
 
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -7,12 +8,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.runtime.getValue
 import com.juni.app.ui.camera.CameraScreen
 import com.juni.app.ui.chat.ChatScreen
 import com.juni.app.ui.conversations.ConversationsScreen
@@ -31,6 +35,14 @@ object Routes {
 @Composable
 fun AppNavHost() {
     val nav = rememberNavController()
+
+    // Diagnostic: log every nav transition so we can chase the "blank screen"
+    // bug after-the-fact via `adb logcat -s juni-nav`.
+    val current by nav.currentBackStackEntryAsState()
+    LaunchedEffect(current) {
+        Log.d("juni-nav", "now on: ${current?.destination?.route} args=${current?.arguments}")
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -39,8 +51,14 @@ fun AppNavHost() {
         NavHost(navController = nav, startDestination = Routes.CONVERSATIONS) {
             composable(Routes.CONVERSATIONS) {
                 ConversationsScreen(
-                    onOpenConversation = { id -> nav.navigate(Routes.chat(id)) },
-                    onOpenSettings = { nav.navigate(Routes.SETTINGS) },
+                    onOpenConversation = { id ->
+                        Log.d("juni-nav", "open conversation id=$id")
+                        nav.navigate(Routes.chat(id))
+                    },
+                    onOpenSettings = {
+                        Log.d("juni-nav", "open settings")
+                        nav.navigate(Routes.SETTINGS)
+                    },
                 )
             }
             composable(Routes.SETTINGS) {
