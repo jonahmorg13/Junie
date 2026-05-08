@@ -1,37 +1,25 @@
 package com.juni.app.ui
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.juni.app.ui.theme.TermAccent
+import com.juni.app.ui.preview.PreviewScreen
 
 /**
- * Phase 1 placeholder. Real Navigation Compose graph lands once we have
- * Conversations, Chat, Camera, and Settings screens.
+ * Phase-1/2 placeholder. Real Navigation Compose graph (Conversations,
+ * Chat, Camera, Settings) lands once those screens exist.
  */
 @Composable
 fun AppNavHost() {
-    Box(
+    androidx.compose.foundation.layout.Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        contentAlignment = Alignment.Center,
+            .padding(WindowInsets.systemBars.asPaddingValues()),
     ) {
-        BasicText(
-            text = "juni · ready",
-            style = TextStyle(
-                color = TermAccent,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 18.sp,
-            ),
-        )
+        PreviewScreen()
     }
 }
