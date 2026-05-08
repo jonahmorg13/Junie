@@ -35,7 +35,7 @@ import com.juni.app.ui.terminal.TermText
 fun PreviewScreen(
     onOpenSettings: () -> Unit = {},
     onOpenVault: () -> Unit = {},
-    onOpenChatDebug: () -> Unit = {},
+    onOpenChat: () -> Unit = {},
 ) {
     var typed by remember { mutableStateOf("") }
     var counter by remember { mutableStateOf(0) }
@@ -55,7 +55,7 @@ fun PreviewScreen(
             TermText(text = "juni · ui preview", color = TermColor.Accent, bold = true)
             TermButton(label = "settings", onClick = onOpenSettings)
             TermButton(label = "vault", onClick = onOpenVault)
-            TermButton(label = "chat", color = TermColor.Green, onClick = onOpenChatDebug)
+            TermButton(label = "chat", color = TermColor.Green, onClick = onOpenChat)
         }
         TermText(text = "every terminal primitive on one screen", color = TermColor.Dim)
 
