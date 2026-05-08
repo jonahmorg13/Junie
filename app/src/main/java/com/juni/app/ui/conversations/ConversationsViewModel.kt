@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -21,6 +22,11 @@ class ConversationsViewModel : ViewModel() {
     val conversations: StateFlow<List<ConversationEntity>> = repo.observeConversations()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** True once the user has picked a vault folder. Chats are gated on this. */
+    val vaultIsSet: StateFlow<Boolean> = app.appSettings.flow
+        .map { it.vaultUri != null }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     private val _selectedIds = MutableStateFlow<Set<String>>(emptySet())
     val selectedIds: StateFlow<Set<String>> = _selectedIds.asStateFlow()
 
@@ -28,6 +34,10 @@ class ConversationsViewModel : ViewModel() {
     fun createNew(onCreated: (String) -> Unit) {
         viewModelScope.launch {
             val s = app.appSettings.flow.first()
+            if (s.vaultUri == null) {
+                Toaster.error("set a vault folder in settings before chatting")
+                return@launch
+            }
             val provider = s.providerId
             val model = s.modelByProvider[provider].orEmpty()
             val entity = repo.create(provider.key, model)

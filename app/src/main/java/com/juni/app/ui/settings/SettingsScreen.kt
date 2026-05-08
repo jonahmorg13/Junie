@@ -13,8 +13,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -64,54 +65,80 @@ fun SettingsScreen(
     var pendingDeleteAll by remember { mutableStateOf(false) }
     var section by remember { mutableStateOf(SettingsSection.AI_PROVIDER) }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-        ) {
-            TermButton(label = "back", onClick = onBack)
-            TermText(text = "settings", color = TermColor.Accent, bold = true)
+        item(key = "header") {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                TermButton(label = "back", onClick = onBack)
+                TermText(text = "settings", color = TermColor.Accent, bold = true)
+            }
         }
-        TermDivider()
-
-        SectionSelector(current = section, onSelect = { section = it })
-        TermDivider()
+        item(key = "header-divider") { TermDivider() }
+        item(key = "section-selector") {
+            SectionSelector(current = section, onSelect = { section = it })
+        }
+        item(key = "selector-divider") { TermDivider() }
 
         if (settings == null) {
-            TermText(text = "loading…", color = TermColor.Dim)
-            return@Column
-        }
-
-        when (section) {
-            SettingsSection.AI_PROVIDER -> AiProviderSection(
-                settings = settings,
-                ui = ui,
-                vm = vm,
-            )
-            SettingsSection.APPEARANCE -> AppearanceSection(
-                current = settings.theme,
-                onSelect = vm::setTheme,
-            )
-            SettingsSection.SYSTEM_PROMPT -> SystemPromptSection(
-                value = settings.systemPrompt,
-                vm = vm,
-                onResetClicked = { pendingResetPrompt = true },
-            )
-            SettingsSection.VAULT -> VaultSection(
-                vaultUri = settings.vaultUri,
-                onPick = { pickVault.launch(null) },
-                onClearClicked = { pendingClearVault = true },
-            )
-            SettingsSection.DATA -> DataSection(
-                onDeleteAllClicked = { pendingDeleteAll = true },
-            )
+            item(key = "loading") { TermText(text = "loading…", color = TermColor.Dim) }
+        } else {
+            when (section) {
+                SettingsSection.AI_PROVIDER -> {
+                    item(key = "ai-active") {
+                        ActiveProviderBox(
+                            current = settings.providerId,
+                            onSelect = vm::selectProvider,
+                        )
+                    }
+                    items(
+                        items = ProviderId.entries.toList(),
+                        key = { provider -> "ai-config-${provider.key}" },
+                    ) { provider ->
+                        ProviderConfigBox(
+                            provider = provider,
+                            model = settings.modelByProvider[provider].orEmpty(),
+                            apiKey = ui.apiKeyByProvider[provider].orEmpty(),
+                            ollamaBaseUrl = settings.ollamaBaseUrl,
+                            onModelChange = { vm.setModel(provider, it) },
+                            onApiKeyChange = { vm.setApiKey(provider, it) },
+                            onOllamaUrlChange = { vm.setOllamaBaseUrl(it) },
+                        )
+                    }
+                }
+                SettingsSection.APPEARANCE -> item(key = "appearance") {
+                    AppearanceSection(
+                        current = settings.theme,
+                        onSelect = vm::setTheme,
+                    )
+                }
+                SettingsSection.SYSTEM_PROMPT -> item(key = "system-prompt") {
+                    SystemPromptSection(
+                        value = settings.systemPrompt,
+                        vm = vm,
+                        onResetClicked = { pendingResetPrompt = true },
+                    )
+                }
+                SettingsSection.VAULT -> item(key = "vault") {
+                    VaultSection(
+                        vaultUri = settings.vaultUri,
+                        onPick = { pickVault.launch(null) },
+                        onClearClicked = { pendingClearVault = true },
+                    )
+                }
+                SettingsSection.DATA -> item(key = "data") {
+                    DataSection(
+                        onDeleteAllClicked = { pendingDeleteAll = true },
+                    )
+                }
+            }
         }
     }
 
@@ -179,35 +206,21 @@ private fun SectionSelector(
 }
 
 @Composable
-private fun AiProviderSection(
-    settings: com.juni.app.data.prefs.Settings,
-    ui: SettingsUi,
-    vm: SettingsViewModel,
+private fun ActiveProviderBox(
+    current: ProviderId,
+    onSelect: (ProviderId) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        TermBox(title = "active provider") {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                ProviderId.entries.forEach { provider ->
-                    val selected = provider == settings.providerId
-                    val marker = if (selected) "(•)" else "( )"
-                    TermButton(
-                        label = "$marker ${provider.label}",
-                        color = if (selected) TermColor.Accent else TermColor.Fg,
-                        onClick = { vm.selectProvider(provider) },
-                    )
-                }
+    TermBox(title = "active provider") {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            ProviderId.entries.forEach { provider ->
+                val selected = provider == current
+                val marker = if (selected) "(•)" else "( )"
+                TermButton(
+                    label = "$marker ${provider.label}",
+                    color = if (selected) TermColor.Accent else TermColor.Fg,
+                    onClick = { onSelect(provider) },
+                )
             }
-        }
-        ProviderId.entries.forEach { provider ->
-            ProviderConfigBox(
-                provider = provider,
-                model = settings.modelByProvider[provider].orEmpty(),
-                apiKey = ui.apiKeyByProvider[provider].orEmpty(),
-                ollamaBaseUrl = settings.ollamaBaseUrl,
-                onModelChange = { vm.setModel(provider, it) },
-                onApiKeyChange = { vm.setApiKey(provider, it) },
-                onOllamaUrlChange = { vm.setOllamaBaseUrl(it) },
-            )
         }
     }
 }
@@ -310,9 +323,13 @@ private fun ProviderConfigBox(
     onApiKeyChange: (String) -> Unit,
     onOllamaUrlChange: (String) -> Unit,
 ) {
-    var modelDraft by remember(provider, model) { mutableStateOf(model) }
-    var apiKeyDraft by remember(provider, apiKey) { mutableStateOf(apiKey) }
-    var ollamaDraft by remember(provider, ollamaBaseUrl) { mutableStateOf(ollamaBaseUrl) }
+    // Key only on `provider` — keying on the persisted value too would cause
+    // the local draft state to be discarded and reallocated on every keystroke
+    // (DataStore re-emits → parent recomposes → new `model` arg → re-key →
+    // new MutableState), which makes typing visibly chuggy.
+    var modelDraft by remember(provider) { mutableStateOf(model) }
+    var apiKeyDraft by remember(provider) { mutableStateOf(apiKey) }
+    var ollamaDraft by remember(provider) { mutableStateOf(ollamaBaseUrl) }
     var revealKey by remember(provider) { mutableStateOf(false) }
 
     TermBox(title = "${provider.label} config") {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.ImeAction
@@ -17,6 +18,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.juni.app.ui.theme.LocalPalette
 import com.juni.app.ui.theme.TermType
+
+private val InputShape = RoundedCornerShape(6.dp)
 
 /**
  * Single-line or multiline text input wrapped in a thin rounded border so each
@@ -37,9 +40,21 @@ fun TermInput(
     onSubmit: (() -> Unit)? = null,
 ) {
     val palette = LocalPalette.current
-    val shape = RoundedCornerShape(6.dp)
+    // Cache the brush so we don't allocate a SolidColor on every recomposition;
+    // BasicTextField treats brush identity as a state input and would otherwise
+    // re-evaluate cursor rendering.
+    val cursorBrush = remember(palette.accent) { SolidColor(palette.accent) }
+    val keyboardOptions = remember(imeAction) { KeyboardOptions(imeAction = imeAction) }
+    val keyboardActions = remember(onSubmit) {
+        KeyboardActions(
+            onSend = { onSubmit?.invoke() },
+            onDone = { onSubmit?.invoke() },
+            onGo = { onSubmit?.invoke() },
+        )
+    }
+
     val borderModifier = if (showBorder) {
-        Modifier.border(width = 1.dp, color = palette.muted, shape = shape)
+        Modifier.border(width = 1.dp, color = palette.muted, shape = InputShape)
     } else {
         Modifier
     }
@@ -59,15 +74,11 @@ fun TermInput(
                 onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = TermType.body,
-                cursorBrush = SolidColor(palette.accent),
+                cursorBrush = cursorBrush,
                 singleLine = singleLine,
                 visualTransformation = visualTransformation,
-                keyboardOptions = KeyboardOptions(imeAction = imeAction),
-                keyboardActions = KeyboardActions(
-                    onSend = { onSubmit?.invoke() },
-                    onDone = { onSubmit?.invoke() },
-                    onGo = { onSubmit?.invoke() },
-                ),
+                keyboardOptions = keyboardOptions,
+                keyboardActions = keyboardActions,
             )
         }
     }

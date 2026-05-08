@@ -53,6 +53,7 @@ fun AppNavHost() {
                 ChatScreen(
                     onBack = { nav.popBackStack() },
                     onOpenCamera = { nav.navigate(Routes.CAMERA) },
+                    onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                 )
             }
             composable(Routes.CAMERA) {

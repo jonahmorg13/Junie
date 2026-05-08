@@ -74,6 +74,7 @@ fun ConversationsScreen(
     val vm: ConversationsViewModel = viewModel()
     val list by vm.conversations.collectAsState()
     val selectedIds by vm.selectedIds.collectAsState()
+    val vaultIsSet by vm.vaultIsSet.collectAsState()
     val selectionMode = selectedIds.isNotEmpty()
 
     var pendingDelete by remember { mutableStateOf<ConversationEntity?>(null) }
@@ -93,13 +94,19 @@ fun ConversationsScreen(
                 TermButton(label = "settings", onClick = onOpenSettings)
                 TermButton(
                     label = "+ new chat",
-                    color = TermColor.Green,
+                    color = if (vaultIsSet) TermColor.Green else TermColor.Muted,
+                    enabled = vaultIsSet,
                     onClick = { vm.createNew(onOpenConversation) },
                 )
             }
             Spacer(Modifier.height(6.dp))
             TermDivider()
             Spacer(Modifier.height(6.dp))
+
+            if (!vaultIsSet) {
+                VaultRequiredBanner(onOpenSettings = onOpenSettings)
+                Spacer(Modifier.height(6.dp))
+            }
 
             if (list.isEmpty()) {
                 TermText(
@@ -191,6 +198,42 @@ fun ConversationsScreen(
                 pendingBulkDelete = false
             },
             onDismiss = { pendingBulkDelete = false },
+        )
+    }
+}
+
+/**
+ * Banner shown when no vault folder is configured. Chats can't run without a
+ * vault (no tools to call → Claude narrates fake tool calls as text), so we
+ * gate creation here and direct the user to Settings.
+ */
+@Composable
+private fun VaultRequiredBanner(onOpenSettings: () -> Unit) {
+    val palette = LocalPalette.current
+    val shape = RoundedCornerShape(8.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(palette.surface)
+            .border(width = 1.dp, color = palette.red, shape = shape)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        TermText(
+            text = "no vault set",
+            color = TermColor.Red,
+            bold = true,
+        )
+        TermText(
+            text = "junie needs a vault folder to run tools and write notes. " +
+                "pick one in settings to start chatting.",
+            color = TermColor.Dim,
+        )
+        TermButton(
+            label = "open settings",
+            color = TermColor.Accent,
+            onClick = onOpenSettings,
         )
     }
 }

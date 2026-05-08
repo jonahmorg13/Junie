@@ -8,6 +8,8 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -17,11 +19,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,8 +36,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
@@ -53,12 +61,16 @@ import com.juni.app.ui.terminal.TermSpinner
 import com.juni.app.ui.terminal.TermText
 import android.graphics.BitmapFactory
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
+@OptIn(FlowPreview::class)
 @Composable
 fun ChatScreen(
     onBack: () -> Unit,
     onOpenCamera: () -> Unit,
+    onOpenSettings: () -> Unit = {},
 ) {
     val vm: ChatViewModel = viewModel()
     val ui by vm.ui.collectAsState()
@@ -68,7 +80,7 @@ fun ChatScreen(
     var intentMenuOpen by remember { mutableStateOf(false) }
     var attachMenuOpen by remember { mutableStateOf(false) }
     val titleClickSource = remember { MutableInteractionSource() }
-    val transcriptScroll = rememberScrollState()
+    val listState = rememberLazyListState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -102,8 +114,24 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(ui.items.size, ui.streaming.length, ui.isStreaming, pendingImages.size) {
-        transcriptScroll.scrollTo(transcriptScroll.maxValue)
+    // Scroll on substantive changes (item count, streaming start/stop, image attach).
+    // Notably NOT keyed on `ui.streaming.length` — that fired per-token and pinned the
+    // main thread to scrolling instead of letting the user actually use the screen.
+    LaunchedEffect(ui.items.size, ui.isStreaming, pendingImages.size) {
+        val target = listState.layoutInfo.totalItemsCount - 1
+        if (target >= 0) listState.animateScrollToItem(target)
+    }
+    // While streaming, follow the growing text — debounced so we coalesce dozens of
+    // token deltas into a single scroll per ~150ms quiet period.
+    LaunchedEffect(Unit) {
+        snapshotFlow { ui.streaming.length }
+            .debounce(150)
+            .collect {
+                if (ui.isStreaming) {
+                    val target = listState.layoutInfo.totalItemsCount - 1
+                    if (target >= 0) listState.scrollToItem(target)
+                }
+            }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -127,14 +155,23 @@ fun ChatScreen(
         TermText(text = ui.statusLine, color = TermColor.Dim)
         TermDivider()
 
-        Column(
+        val vaultIsSet = ui.vaultUri != null
+        if (!vaultIsSet) {
+            Spacer(Modifier.height(6.dp))
+            VaultRequiredBanner(onOpenSettings = onOpenSettings)
+        }
+
+        val awaitingApproval = ui.items.any {
+            it is ChatItem.ToolCall && it.state is ToolState.Pending
+        }
+        LazyColumn(
+            state = listState,
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(transcriptScroll)
                 .padding(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            ui.items.forEach { item ->
+            items(ui.items) { item ->
                 when (item) {
                     is ChatItem.UserMessage -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (item.imageCount > 0) {
@@ -161,16 +198,15 @@ fun ChatScreen(
                 }
             }
             if (ui.streaming.isNotEmpty()) {
-                TermText(text = ui.streaming, color = TermColor.Fg)
+                item(key = "streaming") {
+                    TermText(text = ui.streaming, color = TermColor.Fg)
+                }
             }
-            // Keep the spinner up until the agent finishes the turn (TurnComplete /
-            // Error) or asks the user for approval. Streamed text and spinner can
-            // coexist so it's clear juni is still working between deltas.
-            val awaitingApproval = ui.items.any {
-                it is ChatItem.ToolCall && it.state is ToolState.Pending
-            }
+            // Spinner stays up until the agent finishes or asks for approval.
             if (ui.isStreaming && !awaitingApproval) {
-                TermSpinner(label = ui.thinkingWord)
+                item(key = "spinner") {
+                    TermSpinner(label = ui.thinkingWord)
+                }
             }
         }
 
@@ -199,19 +235,24 @@ fun ChatScreen(
         }
 
         Spacer(Modifier.height(6.dp))
+        val composerEnabled = !ui.isStreaming && vaultIsSet
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TermButton(label = "+", onClick = { intentMenuOpen = true }, enabled = !ui.isStreaming)
+            TermButton(label = "+", onClick = { intentMenuOpen = true }, enabled = composerEnabled)
             TermInput(
                 modifier = Modifier.weight(1f),
                 value = draft,
                 onValueChange = { draft = it },
-                placeholder = if (ui.isStreaming) "streaming…" else "ask junie…",
+                placeholder = when {
+                    !vaultIsSet -> "set a vault to chat…"
+                    ui.isStreaming -> "streaming…"
+                    else -> "ask junie…"
+                },
                 singleLine = false,
                 imeAction = ImeAction.Send,
                 showBorder = false,
                 onSubmit = {
                     val t = draft
-                    if ((t.isNotBlank() || pendingImages.isNotEmpty()) && !ui.isStreaming) {
+                    if ((t.isNotBlank() || pendingImages.isNotEmpty()) && composerEnabled) {
                         draft = ""
                         vm.send(t)
                     }
@@ -220,14 +261,15 @@ fun ChatScreen(
             TermButton(
                 label = "attach",
                 onClick = { attachMenuOpen = true },
-                enabled = !ui.isStreaming,
+                enabled = composerEnabled,
             )
             if (ui.isStreaming) {
                 TermButton(label = "stop", color = TermColor.Red, onClick = { vm.stop() })
             } else {
                 TermButton(
                     label = "send",
-                    color = TermColor.Green,
+                    color = if (vaultIsSet) TermColor.Green else TermColor.Muted,
+                    enabled = vaultIsSet,
                     onClick = {
                         val t = draft
                         if (t.isNotBlank() || pendingImages.isNotEmpty()) {
@@ -327,6 +369,37 @@ private fun extractVaultName(treeUri: String): String? {
     return decoded.substringAfterLast('/').substringAfterLast(':').takeIf { it.isNotEmpty() }
 }
 
+/**
+ * Banner shown inside the chat when this conversation has no vault attached.
+ * The composer is disabled in that state because the agent has no tools to
+ * call — Claude would otherwise narrate fake tool calls as text.
+ */
+@Composable
+private fun VaultRequiredBanner(onOpenSettings: () -> Unit) {
+    val palette = com.juni.app.ui.theme.LocalPalette.current
+    val shape = RoundedCornerShape(8.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(palette.surface)
+            .border(width = 1.dp, color = palette.red, shape = shape)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        TermText(text = "no vault set", color = TermColor.Red, bold = true)
+        TermText(
+            text = "junie can't run tools without a vault folder. open settings to pick one.",
+            color = TermColor.Dim,
+        )
+        TermButton(
+            label = "open settings",
+            color = TermColor.Accent,
+            onClick = onOpenSettings,
+        )
+    }
+}
+
 @Composable
 private fun PendingImageStrip(
     images: List<ByteArray>,
@@ -337,13 +410,20 @@ private fun PendingImageStrip(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         images.forEachIndexed { index, bytes ->
-            val bitmap = remember(bytes) {
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+            // Decode off the main thread — a 1568px JPEG decode is 30-80ms inline,
+            // visible as a hitch when adding/removing attachments.
+            var bitmap by remember(bytes) {
+                mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
+            }
+            LaunchedEffect(bytes) {
+                bitmap = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+                }
             }
             Box {
                 if (bitmap != null) {
                     Image(
-                        bitmap = bitmap,
+                        bitmap = bitmap!!,
                         contentDescription = null,
                         modifier = Modifier.size(72.dp),
                     )

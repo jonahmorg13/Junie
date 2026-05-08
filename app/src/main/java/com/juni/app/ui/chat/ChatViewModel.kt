@@ -77,12 +77,6 @@ class ChatViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
 
     init {
         viewModelScope.launch {
-            val s = app.appSettings.flow.first()
-            _ui.value = _ui.value.copy(
-                statusLine = "${s.providerId.label} · ${s.modelByProvider[s.providerId]}",
-                vaultUri = s.vaultUri,
-            )
-
             conversation = repo.get(conversationId)
             val loaded = repo.loadMessages(conversationId)
             history.addAll(loaded)
@@ -90,6 +84,16 @@ class ChatViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
                 items = messagesToChatItems(loaded),
                 title = conversation?.title.orEmpty(),
             )
+        }
+        // Keep statusLine + vaultUri reactive — if the user clears the vault from
+        // Settings mid-chat, the banner appears and the composer disables.
+        viewModelScope.launch {
+            app.appSettings.flow.collect { s ->
+                _ui.value = _ui.value.copy(
+                    statusLine = "${s.providerId.label} · ${s.modelByProvider[s.providerId]}",
+                    vaultUri = s.vaultUri,
+                )
+            }
         }
     }
 
@@ -114,6 +118,12 @@ class ChatViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
 
         currentJob = viewModelScope.launch {
             val settings = app.appSettings.flow.first()
+            if (settings.vaultUri == null) {
+                val msg = "Set a vault folder in Settings before chatting."
+                appendItem(ChatItem.SystemError(msg))
+                Toaster.error(msg)
+                return@launch
+            }
             val resolution = ProviderRegistry.resolveFor(settings, app.securePrefs)
             if (resolution is ProviderRegistry.Resolution.Incomplete) {
                 appendItem(ChatItem.SystemError(resolution.message))

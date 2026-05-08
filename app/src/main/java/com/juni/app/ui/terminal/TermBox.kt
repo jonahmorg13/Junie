@@ -1,6 +1,7 @@
 package com.juni.app.ui.terminal
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -11,10 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.juni.app.ui.theme.LocalPalette
 
@@ -31,20 +29,13 @@ fun TermBox(
     background: Color? = null,
     content: @Composable () -> Unit,
 ) {
-    val cornerRadiusDp = 8.dp
-    val shape = RoundedCornerShape(cornerRadiusDp)
+    val shape = RoundedCornerShape(8.dp)
     val borderColor = LocalPalette.current.muted
 
     val outer = modifier
         .fillMaxWidth()
         .let { if (background != null) it.clip(shape).background(background) else it }
-        .drawBehind {
-            drawRoundRect(
-                color = borderColor,
-                cornerRadius = CornerRadius(cornerRadiusDp.toPx()),
-                style = Stroke(width = 1.dp.toPx()),
-            )
-        }
+        .border(width = 1.dp, color = borderColor, shape = shape)
         .padding(contentPadding)
 
     Column(modifier = outer) {
