@@ -15,8 +15,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import com.juni.app.ui.theme.TermAccent
-import com.juni.app.ui.theme.TermMuted
+import com.juni.app.ui.theme.LocalPalette
 import com.juni.app.ui.theme.TermType
 
 /**
@@ -37,9 +36,10 @@ fun TermInput(
     showBorder: Boolean = true,
     onSubmit: (() -> Unit)? = null,
 ) {
+    val palette = LocalPalette.current
     val shape = RoundedCornerShape(6.dp)
     val borderModifier = if (showBorder) {
-        Modifier.border(width = 1.dp, color = TermMuted, shape = shape)
+        Modifier.border(width = 1.dp, color = palette.muted, shape = shape)
     } else {
         Modifier
     }
@@ -59,7 +59,7 @@ fun TermInput(
                 onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = TermType.body,
-                cursorBrush = SolidColor(TermAccent),
+                cursorBrush = SolidColor(palette.accent),
                 singleLine = singleLine,
                 visualTransformation = visualTransformation,
                 keyboardOptions = KeyboardOptions(imeAction = imeAction),

@@ -15,7 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.juni.app.ui.theme.TermSurface
+import com.juni.app.ui.theme.LocalPalette
 
 /** A single row in [TermMenuSheet]. Pass a label and an optional sublabel/description. */
 data class TermMenuItem(
@@ -59,7 +59,7 @@ fun TermMenuSheet(
                     onClick = {},
                 ),
         ) {
-            TermBox(title = title, background = TermSurface) {
+            TermBox(title = title, background = LocalPalette.current.surface) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     items.forEach { item ->
                         Column(

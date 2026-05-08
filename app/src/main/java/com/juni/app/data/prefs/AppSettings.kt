@@ -17,6 +17,7 @@ data class Settings(
     val vaultUri: String?,
     val ollamaBaseUrl: String,
     val systemPrompt: String,
+    val theme: ThemePref,
 )
 
 private val DEFAULT_MODELS = mapOf(
@@ -56,6 +57,10 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it.remove(KEY_SYSTEM_PROMPT) }
     }
 
+    suspend fun setTheme(theme: ThemePref) {
+        context.dataStore.edit { it[KEY_THEME] = theme.key }
+    }
+
     private fun Preferences.toSettings(): Settings {
         val provider = ProviderId.fromKey(this[KEY_PROVIDER])
         val models = ProviderId.entries.associateWith { p ->
@@ -67,6 +72,7 @@ class AppSettings(private val context: Context) {
             vaultUri = this[KEY_VAULT_URI],
             ollamaBaseUrl = this[KEY_OLLAMA_URL] ?: "http://localhost:11434",
             systemPrompt = this[KEY_SYSTEM_PROMPT] ?: JUNI_SYSTEM_PROMPT,
+            theme = ThemePref.fromKey(this[KEY_THEME]),
         )
     }
 
@@ -78,5 +84,6 @@ class AppSettings(private val context: Context) {
         private val KEY_VAULT_URI = stringPreferencesKey("vault_uri")
         private val KEY_OLLAMA_URL = stringPreferencesKey("ollama_base_url")
         private val KEY_SYSTEM_PROMPT = stringPreferencesKey("system_prompt")
+        private val KEY_THEME = stringPreferencesKey("theme")
     }
 }

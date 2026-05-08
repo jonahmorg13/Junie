@@ -31,6 +31,11 @@ class ConversationRepository(
 
     suspend fun delete(id: String) = conversationDao.delete(id)
 
+    suspend fun deleteMany(ids: List<String>) {
+        if (ids.isEmpty()) return
+        conversationDao.deleteIds(ids)
+    }
+
     suspend fun deleteAll(): Int {
         val n = conversationDao.count()
         conversationDao.deleteAll()

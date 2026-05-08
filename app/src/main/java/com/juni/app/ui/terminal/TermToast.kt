@@ -15,7 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.juni.app.ui.theme.TermSurface
+import com.juni.app.ui.theme.LocalPalette
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -78,7 +78,7 @@ fun ToastHost(
                         onClick = { current = null },
                     ),
             ) {
-                TermBox(background = TermSurface) {
+                TermBox(background = LocalPalette.current.surface) {
                     TermText(
                         text = msg.text,
                         color = when (msg.kind) {

@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.juni.app.ui.theme.TermMuted
+import com.juni.app.ui.theme.LocalPalette
 
 @Composable
 fun TermDivider(modifier: Modifier = Modifier) {
@@ -15,6 +15,6 @@ fun TermDivider(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .height(1.dp)
-            .background(TermMuted),
+            .background(LocalPalette.current.muted),
     )
 }

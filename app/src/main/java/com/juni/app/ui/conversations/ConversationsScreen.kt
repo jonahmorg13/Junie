@@ -1,6 +1,8 @@
 package com.juni.app.ui.conversations
 
-import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -43,22 +45,39 @@ fun ConversationsScreen(
 ) {
     val vm: ConversationsViewModel = viewModel()
     val list by vm.conversations.collectAsState()
+    val selectedIds by vm.selectedIds.collectAsState()
+    val selectionMode = selectedIds.isNotEmpty()
+
     var pendingDelete by remember { mutableStateOf<ConversationEntity?>(null) }
     var pendingRename by remember { mutableStateOf<ConversationEntity?>(null) }
+    var pendingBulkDelete by remember { mutableStateOf(false) }
+
+    // System back exits selection mode before popping the screen.
+    BackHandler(enabled = selectionMode) { vm.clearSelection() }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TermText(text = "juni", color = TermColor.Accent, bold = true)
-            TermButton(label = "settings", onClick = onOpenSettings)
-            TermButton(
-                label = "+ new chat",
-                color = TermColor.Green,
-                onClick = { vm.createNew(onOpenConversation) },
+        if (selectionMode) {
+            SelectionTopBar(
+                count = selectedIds.size,
+                allSelected = selectedIds.size == list.size && list.isNotEmpty(),
+                onCancel = { vm.clearSelection() },
+                onSelectAll = { vm.selectAll() },
+                onDelete = { pendingBulkDelete = true },
             )
+        } else {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TermText(text = "juni", color = TermColor.Accent, bold = true)
+                TermButton(label = "settings", onClick = onOpenSettings)
+                TermButton(
+                    label = "+ new chat",
+                    color = TermColor.Green,
+                    onClick = { vm.createNew(onOpenConversation) },
+                )
+            }
         }
         Spacer(Modifier.height(6.dp))
         TermDivider()
@@ -77,7 +96,13 @@ fun ConversationsScreen(
                 items(list, key = { it.id }) { conversation ->
                     ConversationRow(
                         conversation = conversation,
-                        onTap = { onOpenConversation(conversation.id) },
+                        selectionMode = selectionMode,
+                        selected = selectedIds.contains(conversation.id),
+                        onTap = {
+                            if (selectionMode) vm.toggleSelection(conversation.id)
+                            else onOpenConversation(conversation.id)
+                        },
+                        onLongPress = { vm.toggleSelection(conversation.id) },
                         onRename = { pendingRename = conversation },
                         onDelete = { pendingDelete = conversation },
                     )
@@ -110,33 +135,88 @@ fun ConversationsScreen(
             onDismiss = { pendingRename = null },
         )
     }
+    if (pendingBulkDelete) {
+        val n = selectedIds.size
+        TermConfirm(
+            title = if (n == 1) "delete chat" else "delete $n chats",
+            message = if (n == 1) "delete the selected chat? this cannot be undone."
+                else "delete $n selected chats? this cannot be undone.",
+            confirmLabel = "delete",
+            onConfirm = {
+                vm.deleteSelected()
+                pendingBulkDelete = false
+            },
+            onDismiss = { pendingBulkDelete = false },
+        )
+    }
 }
 
 @Composable
+private fun SelectionTopBar(
+    count: Int,
+    allSelected: Boolean,
+    onCancel: () -> Unit,
+    onSelectAll: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TermButton(label = "cancel", onClick = onCancel)
+        TermText(
+            text = "$count selected",
+            color = TermColor.Accent,
+            bold = true,
+        )
+        if (!allSelected) {
+            TermButton(label = "select all", onClick = onSelectAll)
+        }
+        TermButton(label = "delete", color = TermColor.Red, onClick = onDelete)
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 private fun ConversationRow(
     conversation: ConversationEntity,
+    selectionMode: Boolean,
+    selected: Boolean,
     onTap: () -> Unit,
+    onLongPress: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val timestamp = remember(conversation.updatedAt) { formatRelative(conversation.updatedAt) }
     val rowClick = remember { MutableInteractionSource() }
 
+    val marker = when {
+        selectionMode && selected -> "[x]"
+        selectionMode -> "[ ]"
+        else -> "▸"
+    }
+    val titleColor = if (selected) TermColor.Accent else TermColor.Fg
+
     TermBox(
-        modifier = Modifier.clickable(
+        modifier = Modifier.combinedClickable(
             interactionSource = rowClick,
             indication = null,
             onClick = onTap,
+            onLongClick = onLongPress,
         ),
     ) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Column {
-                TermText(text = "▸ ${conversation.title}", color = TermColor.Fg)
+                TermText(text = "$marker ${conversation.title}", color = titleColor)
                 TermText(text = timestamp, color = TermColor.Muted)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TermButton(label = "rename", onClick = onRename)
-                TermButton(label = "delete", color = TermColor.Red, onClick = onDelete)
+            // Hide per-row buttons in selection mode — the top bar drives bulk actions.
+            if (!selectionMode) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TermButton(label = "rename", onClick = onRename)
+                    TermButton(label = "delete", color = TermColor.Red, onClick = onDelete)
+                }
             }
         }
     }
@@ -153,4 +233,3 @@ private fun formatRelative(epochMs: Long): String {
         else -> SimpleDateFormat("MMM d", Locale.US).format(Date(epochMs))
     }
 }
-

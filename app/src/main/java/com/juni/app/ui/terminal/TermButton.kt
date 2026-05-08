@@ -10,9 +10,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.juni.app.ui.theme.TermAccent
-import com.juni.app.ui.theme.TermBg
+import com.juni.app.ui.theme.LocalPalette
 import com.juni.app.ui.theme.TermType
 
 @Composable
@@ -23,14 +23,15 @@ fun TermButton(
     color: TermColor = TermColor.Fg,
     enabled: Boolean = true,
 ) {
+    val palette = LocalPalette.current
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val pressedBg = TermAccent
-    val pressedFg = TermBg
+    val pressedBg = palette.accent
+    val pressedFg = palette.onAccent
 
     Box(
         modifier = modifier
-            .background(if (pressed && enabled) pressedBg else androidx.compose.ui.graphics.Color.Transparent)
+            .background(if (pressed && enabled) pressedBg else Color.Transparent)
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,

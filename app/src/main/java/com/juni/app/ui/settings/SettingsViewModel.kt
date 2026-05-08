@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.juni.app.JuniApp
 import com.juni.app.data.prefs.ProviderId
 import com.juni.app.data.prefs.Settings
+import com.juni.app.data.prefs.ThemePref
 import com.juni.app.ui.terminal.Toaster
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -74,6 +75,13 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch {
             app.appSettings.setSystemPrompt(value)
             Toaster.success("system prompt saved")
+        }
+    }
+
+    fun setTheme(theme: ThemePref) {
+        viewModelScope.launch {
+            app.appSettings.setTheme(theme)
+            Toaster.success("theme: ${theme.label}")
         }
     }
 

@@ -8,6 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build / install / run
 
+The wrapper, `adb`, and the output APK path are identical on every OS — only the wrapper invocation and the log-filter pipe differ between shells. Pick the block for your shell.
+
+macOS / Linux (bash/zsh):
+
 ```bash
 ./gradlew assembleDebug                              # produces app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/debug/app-debug.apk
@@ -15,9 +19,22 @@ adb shell am start -n com.juni.app/.MainActivity
 adb logcat -d | grep -E "AndroidRuntime|FATAL|com\.juni"   # crash traces
 ```
 
-`local.properties` (gitignored) needs an `sdk.dir=...` pointing at the Android SDK. If gradle complains it can't find the SDK on a fresh clone, that's the file to create.
+Windows (PowerShell):
 
-`gradle.properties` pins `org.gradle.java.home` at the JDK gradle should use. Newer system JVMs (24+) break AGP 8.10.x, so the pinned JDK is intentional — typically the JBR shipped with Android Studio (JDK 21). Edit it if your toolchain is elsewhere; don't drop the property entirely.
+```powershell
+.\gradlew.bat assembleDebug                          # produces app\build\outputs\apk\debug\app-debug.apk
+adb install -r app\build\outputs\apk\debug\app-debug.apk
+adb shell am start -n com.juni.app/.MainActivity
+adb logcat -d | Select-String "AndroidRuntime|FATAL|com\.juni"   # crash traces
+```
+
+Notes on the Windows variant: PowerShell needs the leading `.\` to run a script from the current directory; the wrapper itself is `gradlew.bat` (the extensionless `gradlew` is the Unix shell script). `grep` isn't on Windows by default — `Select-String` is the native equivalent and accepts the same regex. `findstr /R` works too if you prefer a cmd-compatible filter, but its regex dialect is different.
+
+`adb` must be on `PATH`. On Windows it ships in `%LOCALAPPDATA%\Android\Sdk\platform-tools\` when installed via Android Studio; either add that to `PATH` or invoke `adb.exe` by full path.
+
+`local.properties` (gitignored) needs an `sdk.dir=...` pointing at the Android SDK. If gradle complains it can't find the SDK on a fresh clone, that's the file to create. On Windows, escape backslashes or use forward slashes: `sdk.dir=C:\\Users\\you\\AppData\\Local\\Android\\Sdk` or `sdk.dir=C:/Users/you/AppData/Local/Android/Sdk` — Java properties files treat `\` as an escape character.
+
+`gradle.properties` pins `org.gradle.java.home` at the JDK gradle should use. Newer system JVMs (24+) break AGP 8.10.x, so the pinned JDK is intentional — typically the JBR shipped with Android Studio (JDK 21). Edit it if your toolchain is elsewhere; don't drop the property entirely. Same backslash-escaping rule applies if you set a Windows path here.
 
 There are no unit tests in the repo. Verification is end-to-end via the device.
 

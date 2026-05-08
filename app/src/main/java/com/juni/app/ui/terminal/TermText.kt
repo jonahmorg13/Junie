@@ -6,23 +6,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import com.juni.app.ui.theme.TermAccent
-import com.juni.app.ui.theme.TermDim
-import com.juni.app.ui.theme.TermFg
-import com.juni.app.ui.theme.TermGreen
-import com.juni.app.ui.theme.TermMuted
-import com.juni.app.ui.theme.TermRed
+import com.juni.app.ui.theme.LocalPalette
+import com.juni.app.ui.theme.Palette
 import com.juni.app.ui.theme.TermType
 
 enum class TermColor { Fg, Dim, Accent, Muted, Green, Red }
 
-private fun TermColor.toColor(): Color = when (this) {
-    TermColor.Fg -> TermFg
-    TermColor.Dim -> TermDim
-    TermColor.Accent -> TermAccent
-    TermColor.Muted -> TermMuted
-    TermColor.Green -> TermGreen
-    TermColor.Red -> TermRed
+private fun TermColor.resolve(palette: Palette): Color = when (this) {
+    TermColor.Fg -> palette.fg
+    TermColor.Dim -> palette.dim
+    TermColor.Accent -> palette.accent
+    TermColor.Muted -> palette.muted
+    TermColor.Green -> palette.green
+    TermColor.Red -> palette.red
 }
 
 @Composable
@@ -33,8 +29,9 @@ fun TermText(
     bold: Boolean = false,
     style: TextStyle = TermType.body,
 ) {
+    val palette = LocalPalette.current
     val resolved = style.copy(
-        color = color.toColor(),
+        color = color.resolve(palette),
         fontWeight = if (bold) FontWeight.Bold else style.fontWeight,
     )
     BasicText(text = text, modifier = modifier, style = resolved)

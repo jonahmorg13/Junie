@@ -15,7 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.juni.app.ui.theme.TermSurface
+import com.juni.app.ui.theme.LocalPalette
 
 /**
  * Modal confirmation dialog rendered in our terminal aesthetic. Dim
@@ -58,7 +58,7 @@ fun TermConfirm(
                     onClick = {},
                 ),
         ) {
-            TermBox(title = title, background = TermSurface) {
+            TermBox(title = title, background = LocalPalette.current.surface) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     TermText(text = message, color = TermColor.Fg)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

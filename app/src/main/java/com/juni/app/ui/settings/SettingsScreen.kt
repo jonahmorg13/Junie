@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.juni.app.data.prefs.ProviderId
+import com.juni.app.data.prefs.ThemePref
 import com.juni.app.ui.terminal.TermBox
 import com.juni.app.ui.terminal.TermButton
 import com.juni.app.ui.terminal.TermColor
@@ -94,6 +95,10 @@ fun SettingsScreen(
                 ui = ui,
                 vm = vm,
             )
+            SettingsSection.APPEARANCE -> AppearanceSection(
+                current = settings.theme,
+                onSelect = vm::setTheme,
+            )
             SettingsSection.SYSTEM_PROMPT -> SystemPromptSection(
                 value = settings.systemPrompt,
                 vm = vm,
@@ -150,6 +155,7 @@ fun SettingsScreen(
 
 private enum class SettingsSection(val label: String) {
     AI_PROVIDER("ai provider"),
+    APPEARANCE("appearance"),
     SYSTEM_PROMPT("system prompt"),
     VAULT("vault"),
     DATA("data"),
@@ -202,6 +208,31 @@ private fun AiProviderSection(
                 onApiKeyChange = { vm.setApiKey(provider, it) },
                 onOllamaUrlChange = { vm.setOllamaBaseUrl(it) },
             )
+        }
+    }
+}
+
+@Composable
+private fun AppearanceSection(
+    current: ThemePref,
+    onSelect: (ThemePref) -> Unit,
+) {
+    TermBox(title = "theme") {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            TermText(
+                text = "controls colors across the whole app. takes effect immediately.",
+                color = TermColor.Dim,
+            )
+            Spacer(Modifier.height(4.dp))
+            ThemePref.entries.forEach { pref ->
+                val selected = pref == current
+                val marker = if (selected) "(•)" else "( )"
+                TermButton(
+                    label = "$marker ${pref.label}",
+                    color = if (selected) TermColor.Accent else TermColor.Fg,
+                    onClick = { onSelect(pref) },
+                )
+            }
         }
     }
 }

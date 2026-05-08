@@ -4,10 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.juni.app.JuniApp
 import com.juni.app.data.db.ConversationEntity
-import com.juni.app.data.prefs.ProviderId
 import com.juni.app.ui.terminal.Toaster
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -19,6 +20,9 @@ class ConversationsViewModel : ViewModel() {
 
     val conversations: StateFlow<List<ConversationEntity>> = repo.observeConversations()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private val _selectedIds = MutableStateFlow<Set<String>>(emptySet())
+    val selectedIds: StateFlow<Set<String>> = _selectedIds.asStateFlow()
 
     /** Create a new conversation in DB and invoke [onCreated] with its id. */
     fun createNew(onCreated: (String) -> Unit) {
@@ -46,4 +50,30 @@ class ConversationsViewModel : ViewModel() {
         }
     }
 
+    fun toggleSelection(id: String) {
+        _selectedIds.value = _selectedIds.value.toMutableSet().apply {
+            if (!add(id)) remove(id)
+        }
+    }
+
+    fun selectAll() {
+        _selectedIds.value = conversations.value.map { it.id }.toSet()
+    }
+
+    fun clearSelection() {
+        _selectedIds.value = emptySet()
+    }
+
+    fun deleteSelected() {
+        val ids = _selectedIds.value.toList()
+        if (ids.isEmpty()) return
+        _selectedIds.value = emptySet()
+        viewModelScope.launch {
+            repo.deleteMany(ids)
+            Toaster.success(
+                if (ids.size == 1) "conversation deleted"
+                else "${ids.size} conversations deleted",
+            )
+        }
+    }
 }

@@ -16,7 +16,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
-import com.juni.app.ui.theme.TermMuted
+import com.juni.app.ui.theme.LocalPalette
 
 /**
  * Bordered panel with rounded corners and an optional title rendered inside
@@ -33,13 +33,14 @@ fun TermBox(
 ) {
     val cornerRadiusDp = 8.dp
     val shape = RoundedCornerShape(cornerRadiusDp)
+    val borderColor = LocalPalette.current.muted
 
     val outer = modifier
         .fillMaxWidth()
         .let { if (background != null) it.clip(shape).background(background) else it }
         .drawBehind {
             drawRoundRect(
-                color = TermMuted,
+                color = borderColor,
                 cornerRadius = CornerRadius(cornerRadiusDp.toPx()),
                 style = Stroke(width = 1.dp.toPx()),
             )

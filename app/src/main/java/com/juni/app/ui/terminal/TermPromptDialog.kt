@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.juni.app.ui.theme.TermSurface
+import com.juni.app.ui.theme.LocalPalette
 
 /** Modal text-input dialog. Same skin as TermConfirm but the body is a TermInput. */
 @Composable
@@ -56,7 +56,7 @@ fun TermPromptDialog(
                     onClick = {},
                 ),
         ) {
-            TermBox(title = title, background = TermSurface) {
+            TermBox(title = title, background = LocalPalette.current.surface) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     TermInput(
                         value = draft,
