@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**juni** is a native Android (Kotlin + Jetpack Compose) BYOA agent that operates on a local Obsidian vault on the phone. The user picks any of Claude / OpenAI / Gemini / Ollama, bring their own API key, point juni at a folder via the Storage Access Framework, and have agentic conversations that can read, search, create, edit, move, and attach to vault notes — with photos as input via CameraX. Approval-gated tool calls; conversations persist via Room.
+**juni** is a native Android (Kotlin + Jetpack Compose) BYOA agent that operates on a local Obsidian vault on the phone. The user picks any of Claude / OpenAI / Gemini / Ollama, brings their own API key, points juni at a folder via the Storage Access Framework, and has agentic conversations that can read, search, create, edit, move, and attach to vault notes — with photos as input via CameraX. Approval-gated tool calls; conversations persist via Room.
 
 ## Build / install / run
 
@@ -15,13 +15,13 @@ adb shell am start -n com.juni.app/.MainActivity
 adb logcat -d | grep -E "AndroidRuntime|FATAL|com\.juni"   # crash traces
 ```
 
-`gradle.properties` pins `org.gradle.java.home=/opt/android-studio/jbr` (JDK 21 from Android Studio's bundled JBR) — the system JDK is intentionally bypassed because newer JVMs break AGP 8.10.x. Don't remove this line.
+`local.properties` (gitignored) needs an `sdk.dir=...` pointing at the Android SDK. If gradle complains it can't find the SDK on a fresh clone, that's the file to create.
 
-`local.properties` (gitignored) holds `sdk.dir=/home/jonah/Android/Sdk`. If a fresh checkout fails to find the SDK, recreate this file.
+`gradle.properties` pins `org.gradle.java.home` at the JDK gradle should use. Newer system JVMs (24+) break AGP 8.10.x, so the pinned JDK is intentional — typically the JBR shipped with Android Studio (JDK 21). Edit it if your toolchain is elsewhere; don't drop the property entirely.
 
 There are no unit tests in the repo. Verification is end-to-end via the device.
 
-**Don't `adb uninstall`** to "fix" things during dev — it wipes the user's API keys (EncryptedSharedPreferences), DataStore settings, and the Room DB of saved conversations. `adb install -r` is enough for almost every change. Schema-incompatible Room edits would normally require uninstall, but we haven't shipped one yet.
+**Don't `adb uninstall`** to "fix" things during dev — it wipes the user's API keys (EncryptedSharedPreferences), DataStore settings, and the Room DB of saved conversations. `adb install -r` is enough for almost every change. Schema-incompatible Room edits would normally require uninstall, but no shipped change has triggered that yet.
 
 ## Architecture
 
@@ -60,13 +60,9 @@ Three layers, all in `app/src/main/java/com/juni/app/`:
 
 ## Conventions to respect
 
-- **Terminal UI, no Material3.** The look is JetBrains Mono + dark palette + ASCII box-drawing + rounded `TermBox` panels. New screens reuse the `ui/terminal/` primitives. The chat composer's input intentionally has `showBorder = false`; every other input keeps its rounded border.
+- **Terminal UI, no Material 3.** The look is JetBrains Mono + dark palette + ASCII box-drawing + rounded `TermBox` panels. New screens reuse the `ui/terminal/` primitives. The chat composer's input intentionally has `showBorder = false`; every other input keeps its rounded border.
 - **No emoji in juni's output.** This is in the system prompt — keep it there if you edit the default.
 - **Approval is a suspending lambda, not an event.** `AgentLoop.run()` takes an `ApprovalGate` that suspends until the UI completes a `CompletableDeferred`. This keeps the `AgentEvent` stream one-way. Auto-approved tools (`list_files`, `read_note`, `search_notes`, `ask_clarifying_question`, `rename_chat`) bypass the gate — write tools always require a tap.
 - **All vault reads/writes go through `VaultRepository`.** Outside `data/vault/`, code speaks in vault-relative paths like `notes/foo.md`. Never construct a `Uri` elsewhere.
 - **Per-provider message-format mapping is the bug-prone part.** Anthropic uses `tool_use` blocks inside an assistant message + `tool_result` blocks in the next user message. OpenAI uses `tool_calls` on the assistant and one tool-role message per result. Gemini uses `functionCall` / `functionResponse` parts. Ollama uses `tool_calls` on the assistant + `role: tool` results without ids. The conversion functions are at the bottom of each `*Provider.kt` file.
 - **Image flow.** `JuniApp.composerImages` is the single staging point. ChatViewModel reads it on send (base64-encoding into the user `Message`), feeds the same bytes into `AttachmentStaging` so the agent's `save_attachment` tool can persist them later, then clears the staging.
-
-## Memory
-
-There's a project memory directory at `/home/jonah/.claude/projects/-home-jonah-source-repos-juni/memory/` with notes on user preferences (terminal aesthetic, no-emoji output, project context). Read it at session start when working on this repo.
