@@ -31,7 +31,10 @@ import com.juni.app.ui.terminal.TermText
  * Conversations + Chat screens later.
  */
 @Composable
-fun PreviewScreen() {
+fun PreviewScreen(
+    onOpenSettings: () -> Unit = {},
+    onOpenVault: () -> Unit = {},
+) {
     var typed by remember { mutableStateOf("") }
     var counter by remember { mutableStateOf(0) }
 
@@ -42,7 +45,11 @@ fun PreviewScreen() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        TermText(text = "juni · ui preview", color = TermColor.Accent, bold = true)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TermText(text = "juni · ui preview", color = TermColor.Accent, bold = true)
+            TermButton(label = "settings", onClick = onOpenSettings)
+            TermButton(label = "vault", onClick = onOpenVault)
+        }
         TermText(text = "every terminal primitive on one screen", color = TermColor.Dim)
 
         TermDivider()
