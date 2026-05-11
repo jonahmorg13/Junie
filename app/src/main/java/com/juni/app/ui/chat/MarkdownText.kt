@@ -29,8 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.juni.app.ui.terminal.TermDivider
 import com.juni.app.ui.theme.LocalPalette
+import com.juni.app.ui.theme.MonoFont
 import com.juni.app.ui.theme.Palette
-import com.juni.app.ui.theme.TermFont
 import com.juni.app.ui.theme.TermType
 
 // Renders assistant markdown using terminal primitives only — JetBrains Mono,
@@ -99,7 +99,10 @@ private fun CodeBlock(block: MdBlock.CodeBlock, palette: Palette) {
         Box(modifier = Modifier.horizontalScroll(rememberScrollState())) {
             BasicText(
                 text = block.code,
-                style = TermType.small.copy(color = palette.fg),
+                style = TermType.small.copy(
+                    color = palette.fg,
+                    fontFamily = MonoFont,
+                ),
             )
         }
     }
@@ -318,7 +321,7 @@ private fun buildInline(
             if (close != -1) {
                 pushStyle(
                     SpanStyle(
-                        fontFamily = TermFont,
+                        fontFamily = MonoFont,
                         color = palette.accent,
                         background = palette.surface,
                     ),

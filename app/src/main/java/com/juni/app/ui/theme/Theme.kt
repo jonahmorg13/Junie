@@ -49,7 +49,7 @@ val DarkPalette = Palette(
     dim = Color(0xFF888884),
     accent = Color(0xFFA593D5),
     muted = Color(0xFF3A3A3D),
-    green = Color(0xFF8FBF7F),
+    green = Color(0xFF16A34A),
     red = Color(0xFFCF6A6A),
     selection = Color(0xFF2A2438),
     onAccent = Color(0xFF0E0E10),
@@ -63,7 +63,7 @@ val LightPalette = Palette(
     dim = Color(0xFF6F665C),
     accent = Color(0xFF8E7AC6),
     muted = Color(0xFFD9CFC0),
-    green = Color(0xFF4F8A4A),
+    green = Color(0xFF15803D),
     red = Color(0xFFB94A4A),
     selection = Color(0xFFE5DEF5),
     onAccent = Color(0xFFFDF4E6),
@@ -71,7 +71,17 @@ val LightPalette = Palette(
 
 val LocalPalette = staticCompositionLocalOf { DarkPalette }
 
+// Primary app font — Noto Serif, picked to feel closer to the Claude apps than
+// JetBrains Mono. Italic is synthesized from the regular face (no italic TTF
+// bundled to keep the APK leaner).
 val TermFont = FontFamily(
+    Font(R.font.noto_serif_regular, FontWeight.Normal),
+    Font(R.font.noto_serif_bold, FontWeight.Bold),
+)
+
+// Dedicated monospace, still JetBrains Mono. Used only where character-cell
+// alignment matters: code blocks, inline code, tool I/O.
+val MonoFont = FontFamily(
     Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
     Font(R.font.jetbrains_mono_bold, FontWeight.Bold),
 )
@@ -106,6 +116,17 @@ object TermType {
         get() = TextStyle(
             fontFamily = TermFont,
             fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = LocalPalette.current.accent,
+        )
+
+    /** Page-level title — appears in the top bar of each screen. */
+    val title: TextStyle
+        @Composable
+        @ReadOnlyComposable
+        get() = TextStyle(
+            fontFamily = TermFont,
+            fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = LocalPalette.current.accent,
         )

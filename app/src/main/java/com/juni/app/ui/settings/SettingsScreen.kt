@@ -78,7 +78,12 @@ fun SettingsScreen(
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 TermButton(label = "back", onClick = onBack)
-                TermText(text = "settings", color = TermColor.Accent, bold = true)
+                TermText(
+                    text = "settings",
+                    color = TermColor.Accent,
+                    bold = true,
+                    style = com.juni.app.ui.theme.TermType.title,
+                )
             }
         }
         item(key = "header-divider") { TermDivider() }
@@ -214,9 +219,8 @@ private fun ActiveProviderBox(
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             ProviderId.entries.forEach { provider ->
                 val selected = provider == current
-                val marker = if (selected) "(•)" else "( )"
                 TermButton(
-                    label = "$marker ${provider.label}",
+                    label = provider.label,
                     color = if (selected) TermColor.Accent else TermColor.Fg,
                     onClick = { onSelect(provider) },
                 )
@@ -239,9 +243,8 @@ private fun AppearanceSection(
             Spacer(Modifier.height(4.dp))
             ThemePref.entries.forEach { pref ->
                 val selected = pref == current
-                val marker = if (selected) "(•)" else "( )"
                 TermButton(
-                    label = "$marker ${pref.label}",
+                    label = pref.label,
                     color = if (selected) TermColor.Accent else TermColor.Fg,
                     onClick = { onSelect(pref) },
                 )

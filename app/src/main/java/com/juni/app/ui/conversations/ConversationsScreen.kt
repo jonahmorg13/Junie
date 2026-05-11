@@ -90,7 +90,12 @@ fun ConversationsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TermText(text = "junie", color = TermColor.Accent, bold = true)
+                TermText(
+                    text = "Junie",
+                    color = TermColor.Accent,
+                    bold = true,
+                    style = com.juni.app.ui.theme.TermType.title,
+                )
                 TermButton(label = "settings", onClick = onOpenSettings)
                 TermButton(
                     label = "+ new chat",
@@ -114,6 +119,13 @@ fun ConversationsScreen(
                     color = TermColor.Dim,
                 )
             } else {
+                TermText(
+                    text = "Recent Chats",
+                    color = TermColor.Fg,
+                    bold = true,
+                    style = com.juni.app.ui.theme.TermType.header,
+                )
+                Spacer(Modifier.height(6.dp))
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),

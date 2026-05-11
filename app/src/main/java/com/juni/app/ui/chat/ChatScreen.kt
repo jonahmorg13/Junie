@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -145,6 +146,7 @@ fun ChatScreen(
                 text = ui.title.ifEmpty { "junie" },
                 color = TermColor.Accent,
                 bold = true,
+                style = com.juni.app.ui.theme.TermType.title,
                 modifier = Modifier.clickable(
                     interactionSource = titleClickSource,
                     indication = null,
@@ -263,6 +265,7 @@ fun ChatScreen(
                 onClick = { attachMenuOpen = true },
                 enabled = composerEnabled,
             )
+            Spacer(Modifier.width(8.dp))
             if (ui.isStreaming) {
                 TermButton(label = "stop", color = TermColor.Red, onClick = { vm.stop() })
             } else {

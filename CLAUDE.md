@@ -77,7 +77,7 @@ Three layers, all in `app/src/main/java/com/juni/app/`:
 
 ## Conventions to respect
 
-- **Terminal UI, no Material 3.** The look is JetBrains Mono + dark palette + ASCII box-drawing + rounded `TermBox` panels. New screens reuse the `ui/terminal/` primitives. The chat composer's input intentionally has `showBorder = false`; every other input keeps its rounded border.
+- **Custom terminal-y primitives, no Material 3.** The look is Noto Serif (`TermFont`) for body text, JetBrains Mono (`MonoFont`) reserved for code blocks / inline code / anything that needs cell alignment, on a dark palette inside rounded `TermBox` panels. Both font families live in `ui/theme/Theme.kt`. New screens reuse the `ui/terminal/` primitives. The chat composer's input intentionally has `showBorder = false`; every other input keeps its rounded border. (The "terminal" naming is historical — the body font is a serif now, not a monospace.)
 - **No emoji in juni's output.** This is in the system prompt — keep it there if you edit the default.
 - **Approval is a suspending lambda, not an event.** `AgentLoop.run()` takes an `ApprovalGate` that suspends until the UI completes a `CompletableDeferred`. This keeps the `AgentEvent` stream one-way. Auto-approved tools (`list_files`, `read_note`, `search_notes`, `ask_clarifying_question`, `rename_chat`) bypass the gate — write tools always require a tap.
 - **All vault reads/writes go through `VaultRepository`.** Outside `data/vault/`, code speaks in vault-relative paths like `notes/foo.md`. Never construct a `Uri` elsewhere.
