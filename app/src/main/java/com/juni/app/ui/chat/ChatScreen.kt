@@ -185,7 +185,7 @@ fun ChatScreen(
                         }
                     }
                     is ChatItem.AssistantText ->
-                        TermText(text = item.text, color = TermColor.Fg)
+                        MarkdownText(text = item.text)
                     is ChatItem.ToolCall ->
                         ToolCallCard(
                             item = item,
@@ -199,7 +199,7 @@ fun ChatScreen(
             }
             if (ui.streaming.isNotEmpty()) {
                 item(key = "streaming") {
-                    TermText(text = ui.streaming, color = TermColor.Fg)
+                    MarkdownText(text = ui.streaming)
                 }
             }
             // Spinner stays up until the agent finishes or asks for approval.
