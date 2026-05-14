@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.juni.app.data.prefs.FontPref
 import com.juni.app.data.prefs.ProviderId
 import com.juni.app.data.prefs.ThemePref
 import com.juni.app.ui.terminal.TermBox
@@ -33,6 +34,7 @@ import com.juni.app.ui.terminal.TermButton
 import com.juni.app.ui.terminal.TermColor
 import com.juni.app.ui.terminal.TermConfirm
 import com.juni.app.ui.terminal.TermDivider
+import com.juni.app.ui.terminal.TermIconButton
 import com.juni.app.ui.terminal.TermInput
 import com.juni.app.ui.terminal.TermText
 
@@ -77,7 +79,7 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                TermButton(label = "back", onClick = onBack)
+                TermIconButton(glyph = "←", onClick = onBack, color = TermColor.Dim)
                 TermText(
                     text = "settings",
                     color = TermColor.Accent,
@@ -122,6 +124,12 @@ fun SettingsScreen(
                     AppearanceSection(
                         current = settings.theme,
                         onSelect = vm::setTheme,
+                    )
+                }
+                SettingsSection.FONT -> item(key = "font") {
+                    FontSection(
+                        current = settings.font,
+                        onSelect = vm::setFont,
                     )
                 }
                 SettingsSection.SYSTEM_PROMPT -> item(key = "system-prompt") {
@@ -188,6 +196,7 @@ fun SettingsScreen(
 private enum class SettingsSection(val label: String) {
     AI_PROVIDER("ai provider"),
     APPEARANCE("appearance"),
+    FONT("font"),
     SYSTEM_PROMPT("system prompt"),
     VAULT("vault"),
     DATA("data"),
@@ -247,6 +256,37 @@ private fun AppearanceSection(
                     label = pref.label,
                     color = if (selected) TermColor.Accent else TermColor.Fg,
                     onClick = { onSelect(pref) },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Renders each font's label in the font itself, so the picker doubles as a
+ * preview. The currently active font's button is filled with the accent color.
+ */
+@Composable
+private fun FontSection(
+    current: FontPref,
+    onSelect: (FontPref) -> Unit,
+) {
+    TermBox(title = "font") {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            TermText(
+                text = "applies app-wide. each option is rendered in its own face so the picker doubles as a preview.",
+                color = TermColor.Dim,
+            )
+            Spacer(Modifier.height(4.dp))
+            FontPref.entries.forEach { pref ->
+                val selected = pref == current
+                val sampleFont = com.juni.app.ui.theme.resolveAppFont(pref)
+                TermButton(
+                    label = pref.label,
+                    color = if (selected) TermColor.Accent else TermColor.Fg,
+                    onClick = { onSelect(pref) },
+                    // Override the label's font so the user sees the actual glyphs.
+                    labelFontFamily = sampleFont,
                 )
             }
         }

@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontFamily
 import com.juni.app.ui.theme.LocalPalette
 import com.juni.app.ui.theme.MonoFont
 import com.juni.app.ui.theme.Palette
@@ -36,6 +37,9 @@ fun TermButton(
     modifier: Modifier = Modifier,
     color: TermColor = TermColor.Fg,
     enabled: Boolean = true,
+    // Override the label's font. Defaults to the app's body font (via [TermType.body]);
+    // the font-picker passes per-row faces so each label previews itself.
+    labelFontFamily: FontFamily? = null,
 ) {
     val palette = LocalPalette.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -67,7 +71,7 @@ fun TermButton(
             text = label,
             style = TermType.body.copy(
                 color = fg,
-                fontFamily = MonoFont,
+                fontFamily = labelFontFamily ?: MonoFont,
                 fontWeight = FontWeight.Bold,
             ),
         )

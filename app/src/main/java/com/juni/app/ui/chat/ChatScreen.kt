@@ -54,6 +54,7 @@ import com.juni.app.ui.terminal.TermBox
 import com.juni.app.ui.terminal.TermButton
 import com.juni.app.ui.terminal.TermColor
 import com.juni.app.ui.terminal.TermDivider
+import com.juni.app.ui.terminal.TermIconButton
 import com.juni.app.ui.terminal.TermInput
 import com.juni.app.ui.terminal.TermMenuItem
 import com.juni.app.ui.terminal.TermMenuSheet
@@ -141,7 +142,7 @@ fun ChatScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TermButton(label = "back", onClick = onBack)
+            TermIconButton(glyph = "←", onClick = onBack, color = TermColor.Dim)
             TermText(
                 text = ui.title.ifEmpty { "junie" },
                 color = TermColor.Accent,
@@ -224,55 +225,68 @@ fun ChatScreen(
 
         ui.pendingIntent?.let { intent ->
             Spacer(Modifier.height(6.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                TermText(
-                    text = "▸ ${intent.label}: ${intent.short}",
-                    color = TermColor.Accent,
-                )
-                TermButton(label = "x", color = TermColor.Red, onClick = { vm.clearIntent() })
-            }
+            // Tap the chip itself to clear — no separate "x" affordance.
+            TermText(
+                text = "▸ ${intent.label}: ${intent.short}  (tap to clear)",
+                color = TermColor.Accent,
+                modifier = Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { vm.clearIntent() },
+                ),
+            )
         }
 
         Spacer(Modifier.height(6.dp))
         val composerEnabled = !ui.isStreaming && vaultIsSet
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // Full-width input on its own row, action buttons (intent menu / attach /
+        // send / stop) below — gives the user more visible text while typing.
+        TermInput(
+            modifier = Modifier.fillMaxWidth(),
+            value = draft,
+            onValueChange = { draft = it },
+            placeholder = when {
+                !vaultIsSet -> "set a vault to chat…"
+                ui.isStreaming -> "streaming…"
+                else -> "ask junie…"
+            },
+            singleLine = false,
+            imeAction = ImeAction.Send,
+            showBorder = true,
+            onSubmit = {
+                val t = draft
+                if ((t.isNotBlank() || pendingImages.isNotEmpty()) && composerEnabled) {
+                    draft = ""
+                    vm.send(t)
+                }
+            },
+        )
+        Spacer(Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             TermButton(label = "+", onClick = { intentMenuOpen = true }, enabled = composerEnabled)
-            TermInput(
-                modifier = Modifier.weight(1f),
-                value = draft,
-                onValueChange = { draft = it },
-                placeholder = when {
-                    !vaultIsSet -> "set a vault to chat…"
-                    ui.isStreaming -> "streaming…"
-                    else -> "ask junie…"
-                },
-                singleLine = false,
-                imeAction = ImeAction.Send,
-                showBorder = false,
-                onSubmit = {
-                    val t = draft
-                    if ((t.isNotBlank() || pendingImages.isNotEmpty()) && composerEnabled) {
-                        draft = ""
-                        vm.send(t)
-                    }
-                },
-            )
             TermButton(
                 label = "attach",
                 onClick = { attachMenuOpen = true },
                 enabled = composerEnabled,
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.weight(1f))
             if (ui.isStreaming) {
-                TermButton(label = "stop", color = TermColor.Red, onClick = { vm.stop() })
+                // ■ — universal stop glyph; red so its purpose reads at a glance.
+                TermIconButton(
+                    glyph = "■",
+                    onClick = { vm.stop() },
+                    color = TermColor.Red,
+                )
             } else {
-                TermButton(
-                    label = "send",
-                    color = if (vaultIsSet) TermColor.Green else TermColor.Muted,
-                    enabled = vaultIsSet,
+                // ↑ — same direction Claude.ai uses for the send affordance.
+                TermIconButton(
+                    glyph = "↑",
+                    color = TermColor.Accent,
+                    enabled = vaultIsSet && (draft.isNotBlank() || pendingImages.isNotEmpty()),
                     onClick = {
                         val t = draft
                         if (t.isNotBlank() || pendingImages.isNotEmpty()) {

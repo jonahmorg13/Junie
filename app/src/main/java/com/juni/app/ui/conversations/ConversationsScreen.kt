@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.juni.app.R
 import com.juni.app.data.db.ConversationEntity
@@ -57,7 +58,6 @@ import com.juni.app.ui.terminal.TermButton
 import com.juni.app.ui.terminal.TermColor
 import com.juni.app.ui.terminal.TermConfirm
 import com.juni.app.ui.terminal.TermDivider
-import com.juni.app.ui.terminal.TermPromptDialog
 import com.juni.app.ui.terminal.TermText
 import com.juni.app.ui.theme.LocalPalette
 import kotlinx.coroutines.launch
@@ -78,7 +78,6 @@ fun ConversationsScreen(
     val selectionMode = selectedIds.isNotEmpty()
 
     var pendingDelete by remember { mutableStateOf<ConversationEntity?>(null) }
-    var pendingRename by remember { mutableStateOf<ConversationEntity?>(null) }
     var pendingBulkDelete by remember { mutableStateOf(false) }
 
     BackHandler(enabled = selectionMode) { vm.clearSelection() }
@@ -86,8 +85,7 @@ fun ConversationsScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TermText(
@@ -96,12 +94,13 @@ fun ConversationsScreen(
                     bold = true,
                     style = com.juni.app.ui.theme.TermType.title,
                 )
-                TermButton(label = "settings", onClick = onOpenSettings)
-                TermButton(
-                    label = "+ new chat",
-                    color = if (vaultIsSet) TermColor.Green else TermColor.Muted,
-                    enabled = vaultIsSet,
-                    onClick = { vm.createNew(onOpenConversation) },
+                Spacer(Modifier.weight(1f))
+                com.juni.app.ui.terminal.TermIconButton(
+                    glyph = "⚙",
+                    onClick = onOpenSettings,
+                    color = TermColor.Dim,
+                    bold = false,
+                    fontSize = 20.sp,
                 )
             }
             Spacer(Modifier.height(6.dp))
@@ -113,19 +112,35 @@ fun ConversationsScreen(
                 Spacer(Modifier.height(6.dp))
             }
 
+            // "Recent Chats" + new-chat button live on the same row. When the
+            // list is empty we still show the header so the new-chat button is
+            // always reachable (with a fallback empty-state line beneath it).
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TermText(
+                    text = "Recent Chats",
+                    color = TermColor.Fg,
+                    bold = true,
+                    style = com.juni.app.ui.theme.TermType.body.copy(fontSize = 18.sp),
+                )
+                Spacer(Modifier.weight(1f))
+                TermButton(
+                    label = "+ new chat",
+                    color = TermColor.Fg,
+                    enabled = vaultIsSet,
+                    onClick = { vm.createNew(onOpenConversation) },
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+
             if (list.isEmpty()) {
                 TermText(
                     text = "no conversations yet. tap + new chat to begin.",
                     color = TermColor.Dim,
                 )
             } else {
-                TermText(
-                    text = "Recent Chats",
-                    color = TermColor.Fg,
-                    bold = true,
-                    style = com.juni.app.ui.theme.TermType.header,
-                )
-                Spacer(Modifier.height(6.dp))
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -152,7 +167,6 @@ fun ConversationsScreen(
                                     }
                                 },
                                 onLongPress = { vm.toggleSelection(conversation.id) },
-                                onRename = { pendingRename = conversation },
                             )
                         }
                     }
@@ -186,19 +200,7 @@ fun ConversationsScreen(
             onDismiss = { pendingDelete = null },
         )
     }
-    pendingRename?.let { target ->
-        TermPromptDialog(
-            title = "rename chat",
-            initialValue = target.title,
-            placeholder = "new title…",
-            onConfirm = { newTitle ->
-                if (newTitle.isNotEmpty()) vm.rename(target.id, newTitle)
-                pendingRename = null
-            },
-            onDismiss = { pendingRename = null },
-        )
-    }
-    if (pendingBulkDelete) {
+if (pendingBulkDelete) {
         val n = selectedIds.size
         TermConfirm(
             title = if (n == 1) "delete chat" else "delete $n chats",
@@ -403,19 +405,12 @@ private fun ConversationRow(
     selected: Boolean,
     onTap: () -> Unit,
     onLongPress: () -> Unit,
-    onRename: () -> Unit,
 ) {
     val timestamp = remember(conversation.updatedAt) { formatRelative(conversation.updatedAt) }
     val rowClick = remember { MutableInteractionSource() }
+    val titleColor = if (selected) TermColor.Accent else TermColor.Dim
 
-    val marker = when {
-        selectionMode && selected -> "[x]"
-        selectionMode -> "[ ]"
-        else -> "▸"
-    }
-    val titleColor = if (selected) TermColor.Accent else TermColor.Fg
-
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
@@ -424,22 +419,22 @@ private fun ConversationRow(
                 onClick = onTap,
                 onLongClick = onLongPress,
             )
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
     ) {
-        Column {
-            TermText(text = "$marker ${conversation.title}", color = titleColor)
-            TermText(
-                text = timestamp,
-                color = TermColor.Muted,
-                modifier = Modifier.padding(start = 14.dp),
-            )
+        if (selectionMode) {
+            com.juni.app.ui.terminal.TermCheckbox(checked = selected)
+            androidx.compose.foundation.layout.Spacer(Modifier.padding(horizontal = 6.dp))
         }
-        if (!selectionMode) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TermButton(label = "rename", onClick = onRename)
-            }
-        }
+        TermText(
+            text = conversation.title,
+            color = titleColor,
+            bold = true,
+            style = com.juni.app.ui.theme.TermType.body.copy(fontSize = 17.sp),
+            modifier = Modifier.weight(1f),
+        )
+        androidx.compose.foundation.layout.Spacer(Modifier.padding(horizontal = 4.dp))
+        TermText(text = timestamp, color = TermColor.Muted)
     }
 }
 
