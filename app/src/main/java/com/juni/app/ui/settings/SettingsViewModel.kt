@@ -3,7 +3,6 @@ package com.juni.app.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.juni.app.JuniApp
-import com.juni.app.data.prefs.FontPref
 import com.juni.app.data.prefs.ProviderId
 import com.juni.app.data.prefs.Settings
 import com.juni.app.data.prefs.ThemePref
@@ -83,13 +82,6 @@ class SettingsViewModel : ViewModel() {
         viewModelScope.launch {
             app.appSettings.setTheme(theme)
             Toaster.success("theme: ${theme.label}")
-        }
-    }
-
-    fun setFont(font: FontPref) {
-        viewModelScope.launch {
-            app.appSettings.setFont(font)
-            Toaster.success("font: ${font.label}")
         }
     }
 

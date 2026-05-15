@@ -146,7 +146,7 @@ class ChatViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
             repo.appendMessage(conversationId, userMessage)
 
             // Display only the user-typed text, not the bracketed intent prefix.
-            appendItem(ChatItem.UserMessage(text = rawText, imageCount = images.size))
+            appendItem(ChatItem.UserMessage(text = rawText, images = images.toList()))
             app.clearComposerImages()
             _ui.value = _ui.value.copy(
                 streaming = "",
@@ -353,9 +353,10 @@ private fun messagesToChatItems(messages: List<Message>): List<ChatItem> {
             Role.USER -> {
                 val text = message.content.filterIsInstance<MessageContent.Text>()
                     .joinToString("\n") { it.text }
-                val imageCount = message.content.count { it is MessageContent.Image }
-                if (text.isNotEmpty() || imageCount > 0) {
-                    items += ChatItem.UserMessage(text, imageCount)
+                val images = message.content.filterIsInstance<MessageContent.Image>()
+                    .map { Base64.decode(it.base64, Base64.DEFAULT) }
+                if (text.isNotEmpty() || images.isNotEmpty()) {
+                    items += ChatItem.UserMessage(text, images)
                 }
                 // Tool results render inside their matching ToolCall card; nothing to add here.
             }

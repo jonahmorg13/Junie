@@ -18,7 +18,6 @@ data class Settings(
     val ollamaBaseUrl: String,
     val systemPrompt: String,
     val theme: ThemePref,
-    val font: FontPref,
 )
 
 private val DEFAULT_MODELS = mapOf(
@@ -62,10 +61,6 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_THEME] = theme.key }
     }
 
-    suspend fun setFont(font: FontPref) {
-        context.dataStore.edit { it[KEY_FONT] = font.key }
-    }
-
     private fun Preferences.toSettings(): Settings {
         val provider = ProviderId.fromKey(this[KEY_PROVIDER])
         val models = ProviderId.entries.associateWith { p ->
@@ -78,7 +73,6 @@ class AppSettings(private val context: Context) {
             ollamaBaseUrl = this[KEY_OLLAMA_URL] ?: "http://localhost:11434",
             systemPrompt = this[KEY_SYSTEM_PROMPT] ?: JUNI_SYSTEM_PROMPT,
             theme = ThemePref.fromKey(this[KEY_THEME]),
-            font = FontPref.fromKey(this[KEY_FONT]),
         )
     }
 
@@ -91,6 +85,5 @@ class AppSettings(private val context: Context) {
         private val KEY_OLLAMA_URL = stringPreferencesKey("ollama_base_url")
         private val KEY_SYSTEM_PROMPT = stringPreferencesKey("system_prompt")
         private val KEY_THEME = stringPreferencesKey("theme")
-        private val KEY_FONT = stringPreferencesKey("font")
     }
 }

@@ -431,6 +431,8 @@ private fun ConversationRow(
             color = titleColor,
             bold = true,
             style = com.juni.app.ui.theme.TermType.body.copy(fontSize = 17.sp),
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
         androidx.compose.foundation.layout.Spacer(Modifier.padding(horizontal = 4.dp))

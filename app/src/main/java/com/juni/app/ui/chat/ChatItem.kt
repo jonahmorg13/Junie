@@ -5,7 +5,7 @@ import kotlinx.serialization.json.JsonObject
 
 /** What the chat transcript renders. Distinct from canonical [com.juni.app.domain.agent.Message]. */
 sealed interface ChatItem {
-    data class UserMessage(val text: String, val imageCount: Int = 0) : ChatItem
+    data class UserMessage(val text: String, val images: List<ByteArray> = emptyList()) : ChatItem
     data class AssistantText(val text: String) : ChatItem
     data class ToolCall(
         val id: String,

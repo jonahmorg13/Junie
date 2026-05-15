@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -81,6 +82,7 @@ fun ChatScreen(
     var renameDialogOpen by remember { mutableStateOf(false) }
     var intentMenuOpen by remember { mutableStateOf(false) }
     var attachMenuOpen by remember { mutableStateOf(false) }
+    var previewImages by remember { mutableStateOf<List<ByteArray>?>(null) }
     val titleClickSource = remember { MutableInteractionSource() }
     val listState = rememberLazyListState()
     val context = LocalContext.current
@@ -138,21 +140,29 @@ fun ChatScreen(
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TermIconButton(glyph = "←", onClick = onBack, color = TermColor.Dim)
+            // weight(1f) makes the title fill the remaining row width so the
+            // ellipsis kicks in against the actual screen edge. Tapping the
+            // (now larger) hit area still opens rename, which shows the full
+            // title for editing.
             TermText(
                 text = ui.title.ifEmpty { "junie" },
                 color = TermColor.Accent,
                 bold = true,
                 style = com.juni.app.ui.theme.TermType.title,
-                modifier = Modifier.clickable(
-                    interactionSource = titleClickSource,
-                    indication = null,
-                    onClick = { renameDialogOpen = true },
-                ),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(
+                        interactionSource = titleClickSource,
+                        indication = null,
+                        onClick = { renameDialogOpen = true },
+                    ),
             )
         }
         TermText(text = ui.statusLine, color = TermColor.Dim)
@@ -177,10 +187,16 @@ fun ChatScreen(
             items(ui.items) { item ->
                 when (item) {
                     is ChatItem.UserMessage -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (item.imageCount > 0) {
+                        if (item.images.isNotEmpty()) {
+                            val n = item.images.size
                             TermText(
-                                text = "[${item.imageCount} ${if (item.imageCount == 1) "image" else "images"}]",
+                                text = "[$n ${if (n == 1) "image" else "images"}]",
                                 color = TermColor.Muted,
+                                modifier = Modifier.clickable(
+                                    interactionSource = remember(item) { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { previewImages = item.images },
+                                ),
                             )
                         }
                         if (item.text.isNotEmpty()) {
@@ -324,6 +340,9 @@ fun ChatScreen(
             onDismiss = { intentMenuOpen = false },
         )
     }
+    previewImages?.let { imgs ->
+        ImagePreviewDialog(images = imgs, onDismiss = { previewImages = null })
+    }
     if (attachMenuOpen) {
         TermMenuSheet(
             title = "attach…",
@@ -414,6 +433,77 @@ private fun VaultRequiredBanner(onOpenSettings: () -> Unit) {
             color = TermColor.Accent,
             onClick = onOpenSettings,
         )
+    }
+}
+
+/**
+ * Modal viewer for images already attached to a sent message. The bytes are
+ * the same ones we passed to the provider (decoded once from base64 on chat
+ * load), so opening the dialog only costs the JPEG → Bitmap decode.
+ */
+@Composable
+private fun ImagePreviewDialog(
+    images: List<ByteArray>,
+    onDismiss: () -> Unit,
+) {
+    val scrim = remember { MutableInteractionSource() }
+    val passthrough = remember { MutableInteractionSource() }
+    val palette = com.juni.app.ui.theme.LocalPalette.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.75f))
+            .clickable(
+                interactionSource = scrim,
+                indication = null,
+                onClick = onDismiss,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(24.dp)
+                .clickable(
+                    interactionSource = passthrough,
+                    indication = null,
+                    onClick = {},
+                ),
+        ) {
+            TermBox(
+                title = if (images.size == 1) "image" else "${images.size} images",
+                background = palette.surface,
+            ) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    images.forEach { bytes ->
+                        var bitmap by remember(bytes) {
+                            mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
+                        }
+                        LaunchedEffect(bytes) {
+                            bitmap = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+                            }
+                        }
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap!!,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        } else {
+                            TermText(text = "decoding…", color = TermColor.Muted)
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TermButton(label = "close", onClick = onDismiss)
+                    }
+                }
+            }
+        }
     }
 }
 

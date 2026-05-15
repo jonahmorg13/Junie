@@ -6,6 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.juni.app.ui.theme.LocalPalette
 import com.juni.app.ui.theme.Palette
 import com.juni.app.ui.theme.TermType
@@ -28,11 +29,19 @@ fun TermText(
     color: TermColor = TermColor.Fg,
     bold: Boolean = false,
     style: TextStyle = TermType.body,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
 ) {
     val palette = LocalPalette.current
     val resolved = style.copy(
         color = color.resolve(palette),
         fontWeight = if (bold) FontWeight.Bold else style.fontWeight,
     )
-    BasicText(text = text, modifier = modifier, style = resolved)
+    BasicText(
+        text = text,
+        modifier = modifier,
+        style = resolved,
+        maxLines = maxLines,
+        overflow = overflow,
+    )
 }

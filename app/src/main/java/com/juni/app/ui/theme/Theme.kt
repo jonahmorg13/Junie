@@ -71,62 +71,27 @@ val LightPalette = Palette(
 
 val LocalPalette = staticCompositionLocalOf { DarkPalette }
 
-// Default body font — used as the [LocalAppFont] initial value before settings
-// have hydrated. The actual rendered font is resolved per-FontPref at runtime
-// via [resolveAppFont].
-val TermFont = FontFamily(
+// Noto Serif for headers and page titles — gives them the editorial,
+// branded feel that distinguishes them from running text. Bold is shipped
+// because [TermType.header] and [TermType.title] both use FontWeight.Bold.
+val HeaderFont = FontFamily(
     Font(R.font.noto_serif_regular, FontWeight.Normal),
     Font(R.font.noto_serif_bold, FontWeight.Bold),
 )
 
-/**
- * The active body font, provided by [JuniTheme]. Code blocks and other content
- * that *must* be monospace use [MonoFont] directly instead.
- */
-val LocalAppFont = staticCompositionLocalOf { TermFont }
+// Noto Sans for running body text. We only ship the regular weight; the
+// occasional `TermText(bold = true)` lets the platform synthesize a bold
+// face from the regular outlines, which is acceptable for Latin script.
+val BodyFont = FontFamily(
+    Font(R.font.noto_sans_regular, FontWeight.Normal),
+)
 
 // Dedicated monospace, still JetBrains Mono. Used only where character-cell
-// alignment matters: code blocks, inline code, tool I/O.
+// alignment matters: code blocks, inline code, tool I/O, button labels.
 val MonoFont = FontFamily(
     Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
     Font(R.font.jetbrains_mono_bold, FontWeight.Bold),
 )
-
-/** Map a [FontPref] to its bundled [FontFamily]. */
-fun resolveAppFont(pref: com.juni.app.data.prefs.FontPref): FontFamily = when (pref) {
-    com.juni.app.data.prefs.FontPref.NOTO_SERIF -> FontFamily(
-        Font(R.font.noto_serif_regular, FontWeight.Normal),
-        Font(R.font.noto_serif_bold, FontWeight.Bold),
-    )
-    com.juni.app.data.prefs.FontPref.NOTO_SANS -> FontFamily(
-        Font(R.font.noto_sans_regular, FontWeight.Normal),
-    )
-    com.juni.app.data.prefs.FontPref.NOTO_SANS_MONO -> FontFamily(
-        Font(R.font.noto_sans_mono_regular, FontWeight.Normal),
-    )
-    com.juni.app.data.prefs.FontPref.JETBRAINS_MONO -> FontFamily(
-        Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
-        Font(R.font.jetbrains_mono_bold, FontWeight.Bold),
-    )
-    com.juni.app.data.prefs.FontPref.HACK -> FontFamily(
-        Font(R.font.hack_regular, FontWeight.Normal),
-    )
-    com.juni.app.data.prefs.FontPref.DEJAVU_SANS -> FontFamily(
-        Font(R.font.dejavu_sans_regular, FontWeight.Normal),
-    )
-    com.juni.app.data.prefs.FontPref.DEJAVU_SERIF -> FontFamily(
-        Font(R.font.dejavu_serif_regular, FontWeight.Normal),
-    )
-    com.juni.app.data.prefs.FontPref.DEJAVU_SANS_MONO -> FontFamily(
-        Font(R.font.dejavu_sans_mono_regular, FontWeight.Normal),
-    )
-    com.juni.app.data.prefs.FontPref.ADWAITA_SANS -> FontFamily(
-        Font(R.font.adwaita_sans_regular, FontWeight.Normal),
-    )
-    com.juni.app.data.prefs.FontPref.ADWAITA_MONO -> FontFamily(
-        Font(R.font.adwaita_mono_regular, FontWeight.Normal),
-    )
-}
 
 /**
  * Text style accessors. Composable getters so they pick up palette changes —
@@ -138,7 +103,7 @@ object TermType {
         @Composable
         @ReadOnlyComposable
         get() = TextStyle(
-            fontFamily = LocalAppFont.current,
+            fontFamily = BodyFont,
             fontSize = 14.sp,
             color = LocalPalette.current.fg,
         )
@@ -147,7 +112,7 @@ object TermType {
         @Composable
         @ReadOnlyComposable
         get() = TextStyle(
-            fontFamily = LocalAppFont.current,
+            fontFamily = BodyFont,
             fontSize = 12.sp,
             color = LocalPalette.current.fg,
         )
@@ -156,7 +121,7 @@ object TermType {
         @Composable
         @ReadOnlyComposable
         get() = TextStyle(
-            fontFamily = LocalAppFont.current,
+            fontFamily = HeaderFont,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = LocalPalette.current.accent,
@@ -167,7 +132,7 @@ object TermType {
         @Composable
         @ReadOnlyComposable
         get() = TextStyle(
-            fontFamily = LocalAppFont.current,
+            fontFamily = HeaderFont,
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = LocalPalette.current.accent,
@@ -203,11 +168,7 @@ fun JuniTheme(content: @Composable () -> Unit) {
         }
     }
 
-    val appFont = settings?.font?.let { resolveAppFont(it) } ?: TermFont
-    CompositionLocalProvider(
-        LocalPalette provides palette,
-        LocalAppFont provides appFont,
-    ) {
+    CompositionLocalProvider(LocalPalette provides palette) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
